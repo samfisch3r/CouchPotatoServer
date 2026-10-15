@@ -1,42 +1,60 @@
 CouchPotato
 =====
 
-[![Join the chat at https://gitter.im/CouchPotato/CouchPotatoServer](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/CouchPotato/CouchPotatoServer?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Python tests](https://github.com/samfisch3r/CouchPotatoServer/actions/workflows/tests.yml/badge.svg)](https://github.com/samfisch3r/CouchPotatoServer/actions/workflows/tests.yml)
 
-CouchPotato (CP) is an automatic NZB downloader. You can keep a "movies I want"-list and it will search Usenet for NZBs of these movies every X hours.
-Once a movie is found, it will send the NZB to an enabled Usenet downloader or save it to a watched directory.
+CouchPotato (CP) is an automatic NZB movie downloader. You can keep a "movies I want" list and it will frequently search Usenet via your configured NZB provider (such as Newznab indexers) for these movies.
+Once a matching release is found, it automatically dispatches the download to SABnzbd connected via API key and can rename/organize completed downloads.
 
 
 ## Running from Source
 
-CouchPotatoServer can be run from source. This will use *git* as updater, so make sure that is installed.
+CouchPotatoServer runs on modern Ubuntu with Python 3.12 through 3.14.
 
 ### Ubuntu Linux
 
-* Install Git, Python, and the native build prerequisites with `sudo apt install git python3 python3-venv python3-dev build-essential libxml2-dev libxslt1-dev`.
-* If you enable automatic RAR extraction, install a compatible command-line RAR tool (such as `unrar`); configure its path in Renamer settings only if it is not on `PATH`.
-* Clone the repository, then create an isolated Python environment and install the maintained dependencies:
+* Install system prerequisites:
+  ```sh
+  sudo apt update
+  sudo apt install -y git python3 python3-venv python3-dev build-essential
+  ```
+* If you enable automatic RAR extraction in Renamer settings, install a compatible command-line tool (such as `unrar`).
+* Clone the repository and set up a Python virtual environment:
 
   ```sh
   python3 -m venv .venv
+  .venv/bin/pip install --upgrade pip
   .venv/bin/pip install -r requirements.txt
   ```
 
-* Start the application with `.venv/bin/python CouchPotato.py`.
-* To run it as a service, install `init/couchpotato.service` as `/etc/systemd/system/couchpotato.service`, update its user and application path (including the `.venv` Python path), then run `sudo systemctl enable --now couchpotato`.
-* Open `http://localhost:5050/`.
+* Start the application manually:
+  ```sh
+  .venv/bin/python CouchPotato.py
+  ```
+* Access the web interface at `http://localhost:5050/`.
 
-The fork targets Ubuntu and Python 3.12 through 3.14. Maintained third-party dependencies are installed from `requirements.txt`; some application-specific and media-processing libraries remain bundled. The database engine is a modified legacy dependency, so back up your data before upgrading and test with a copy first. The migration has not yet been validated against a production database or by running the service on Ubuntu.
+### Running as a systemd Service
+
+1. Copy `init/couchpotato.service` to `/etc/systemd/system/couchpotato.service`.
+2. Ensure the `User`, `WorkingDirectory`, and `ExecStart` paths in the service file match your installation directory.
+3. Enable and start the service:
+   ```sh
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now couchpotato.service
+   ```
+
+### Upgrading from Older Versions
+
+Existing `settings.conf` configuration files and CodernityDB databases (`database/` directory) from older Python 2 installations are supported. Documents stored under Python 2 are automatically normalized on read. It is recommended to create a backup copy of your data directory before upgrading.
 
 
-## Development
+## Development & Testing
 
-Install the runtime and development dependencies, then run the tests with:
+Install development dependencies and run the automated test suite:
 
 ```sh
-python3 -m pip install -r requirements.txt -r requirements-dev.txt
-python3 -c "import sys; sys.path.append('libs'); import pytest; raise SystemExit(pytest.main(['couchpotato']))"
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pytest
 ```
 
 If you're going to add styling or doing some javascript work you'll need a few tools that build and compress scss -> css and combine the javascript files. [Node/NPM](https://nodejs.org/), [Grunt](http://gruntjs.com/installing-grunt), [Compass](http://compass-style.org/install/)
