@@ -1,11 +1,15 @@
 [run]
-source=
+source =
 	./couchpotato/
 omit =
 	./libs/*
+	./.venv/*
 	./node_modules/*
+	*_test.py
 [report]
 omit =
-	*/python?.?/*
+	*/python3*/*
 	./libs/*
+	./.venv/*
 	./node_modules/*
+	*_test.py
