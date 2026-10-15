@@ -54,17 +54,17 @@ class CPLog(object):
 
     def safeMessage(self, msg, replace_tuple = ()):
 
-        from couchpotato.core.helpers.encoding import ss, toUnicode
+        from couchpotato.core.helpers.encoding import toUnicode
 
-        msg = ss(msg)
+        msg = toUnicode(msg)
 
         try:
             if isinstance(replace_tuple, tuple):
-                msg = msg % tuple([ss(x) if not isinstance(x, (int, float)) else x for x in list(replace_tuple)])
+                msg = msg % tuple([toUnicode(x) if not isinstance(x, (int, float)) else x for x in replace_tuple])
             elif isinstance(replace_tuple, dict):
-                msg = msg % dict((k, ss(v) if not isinstance(v, (int, float)) else v) for k, v in replace_tuple.iteritems())
+                msg = msg % dict((k, toUnicode(v) if not isinstance(v, (int, float)) else v) for k, v in replace_tuple.items())
             else:
-                msg = msg % ss(replace_tuple)
+                msg = msg % toUnicode(replace_tuple)
         except Exception as e:
             self.logger.error('Failed encoding stuff to log "%s": %s' % (msg, e))
 
@@ -72,8 +72,8 @@ class CPLog(object):
         if not self.is_develop:
 
             for replace in self.replace_private:
-                msg = re.sub('(\?%s=)[^\&]+' % replace, '?%s=xxx' % replace, msg)
-                msg = re.sub('(&%s=)[^\&]+' % replace, '&%s=xxx' % replace, msg)
+                msg = re.sub(r'(\?%s=)[^&]+' % replace, '?%s=xxx' % replace, msg)
+                msg = re.sub(r'(&%s=)[^&]+' % replace, '&%s=xxx' % replace, msg)
 
             # Replace api key
             try:

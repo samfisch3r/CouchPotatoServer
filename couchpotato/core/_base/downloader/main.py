@@ -1,7 +1,3 @@
-from base64 import b32decode, b16encode
-import random
-import re
-
 from couchpotato.api import addApiView
 from couchpotato.core.event import addEvent
 from couchpotato.core.helpers.variable import mergeDicts
@@ -23,29 +19,6 @@ class DownloaderBase(Provider):
     protocol = []
     http_time_between_calls = 0
     status_support = True
-
-    torrent_sources = [
-        'https://torcache.net/torrent/%s.torrent',
-        'https://itorrents.org/torrent/%s.torrent',
-    ]
-
-    torrent_trackers = [
-        'udp://tracker.istole.it:80/announce',
-        'http://tracker.istole.it/announce',
-        'udp://fr33domtracker.h33t.com:3310/announce',
-        'http://tracker.publicbt.com/announce',
-        'udp://tracker.publicbt.com:80/announce',
-        'http://tracker.ccc.de/announce',
-        'udp://tracker.ccc.de:80/announce',
-        'http://exodus.desync.com/announce',
-        'http://exodus.desync.com:6969/announce',
-        'http://tracker.publichd.eu/announce',
-        'udp://tracker.publichd.eu:80/announce',
-        'http://tracker.openbittorrent.com/announce',
-        'udp://tracker.openbittorrent.com/announce',
-        'udp://tracker.openbittorrent.com:80/announce',
-        'udp://open.demonii.com:1337/announce',
-    ]
 
     def __init__(self):
         addEvent('download', self._download)
@@ -124,29 +97,6 @@ class DownloaderBase(Provider):
             log.debug("Downloader doesn't support this protocol")
 
         return is_correct
-
-    def magnetToTorrent(self, magnet_link):
-        torrent_hash = re.findall('urn:btih:([\w]{32,40})', magnet_link)[0].upper()
-
-        # Convert base 32 to hex
-        if len(torrent_hash) == 32:
-            torrent_hash = b16encode(b32decode(torrent_hash))
-
-        sources = self.torrent_sources
-        random.shuffle(sources)
-
-        for source in sources:
-            try:
-                filedata = self.urlopen(source % torrent_hash, headers = {'Referer': source % torrent_hash}, show_error = False)
-                if 'torcache' in filedata and 'file not found' in filedata.lower():
-                    continue
-
-                return filedata
-            except:
-                log.debug('Torrent hash "%s" wasn\'t found on: %s', (torrent_hash, source))
-
-        log.error('Failed converting magnet url to torrent: %s', torrent_hash)
-        return False
 
     def downloadReturnId(self, download_id):
         return {
@@ -228,4 +178,3 @@ class ReleaseDownloadList(list):
         }
 
         return mergeDicts(defaults, result)
-

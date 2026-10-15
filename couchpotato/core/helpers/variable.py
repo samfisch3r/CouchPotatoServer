@@ -1,18 +1,15 @@
-import collections
-import ctypes
 import hashlib
 import os
-import platform
 import random
 import re
+import shutil
 import string
-import sys
 import traceback
 
 from couchpotato.core.helpers.encoding import simplifyString, toSafeString, ss, sp, toUnicode
+from collections.abc import Iterable
+
 from couchpotato.core.logger import CPLog
-import six
-from six.moves import map, zip, filter
 
 
 log = CPLog(__name__)
@@ -23,19 +20,11 @@ def fnEscape(pattern):
 
 
 def link(src, dst):
-    if os.name == 'nt':
-        import ctypes
-        if ctypes.windll.kernel32.CreateHardLinkW(toUnicode(dst), toUnicode(src), 0) == 0: raise ctypes.WinError()
-    else:
-        os.link(toUnicode(src), toUnicode(dst))
+    os.link(toUnicode(src), toUnicode(dst))
 
 
 def symlink(src, dst):
-    if os.name == 'nt':
-        import ctypes
-        if ctypes.windll.kernel32.CreateSymbolicLinkW(toUnicode(dst), toUnicode(src), 1 if os.path.isdir(src) else 0) in [0, 1280]: raise ctypes.WinError()
-    else:
-        os.symlink(toUnicode(src), toUnicode(dst))
+    os.symlink(toUnicode(src), toUnicode(dst))
 
 
 def getUserDir():
@@ -50,36 +39,11 @@ def getUserDir():
 
 
 def getDownloadDir():
-    user_dir = getUserDir()
-
-    # OSX
-    if 'darwin' in platform.platform().lower():
-        return os.path.join(user_dir, 'Downloads')
-
-    if os.name == 'nt':
-        return os.path.join(user_dir, 'Downloads')
-
-    return user_dir
+    return getUserDir()
 
 
 def getDataDir():
-
-    # Windows
-    if os.name == 'nt':
-        return os.path.join(os.environ['APPDATA'], 'CouchPotato')
-
-    user_dir = getUserDir()
-
-    # OSX
-    if 'darwin' in platform.platform().lower():
-        return os.path.join(user_dir, 'Library', 'Application Support', 'CouchPotato')
-
-    # FreeBSD
-    if 'freebsd' in sys.platform:
-        return os.path.join('/usr/local/', 'couchpotato', 'data')
-
-    # Linux
-    return os.path.join(user_dir, '.couchpotato')
+    return os.path.join(getUserDir(), '.couchpotato')
 
 
 def isDict(obj):
@@ -123,16 +87,16 @@ def flattenList(l):
 
 
 def md5(text):
-    return hashlib.md5(ss(text)).hexdigest()
+    return hashlib.md5(ss(text).encode('utf-8')).hexdigest()
 
 
 def sha1(text):
-    return hashlib.sha1(text).hexdigest()
+    return hashlib.sha1(toUnicode(text).encode('utf-8')).hexdigest()
 
 
 def isLocalIP(ip):
     ip = ip.lstrip('htps:/')
-    regex = '/(^127\.)|(^192\.168\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^::1)$/'
+    regex = r'/(^127\.)|(^192\.168\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^::1)$/'
     return re.search(regex, ip) is not None or 'localhost' in ip or ip[:4] == '127.'
 
 
@@ -194,7 +158,7 @@ def getImdb(txt, check_inside = False, multiple = False):
         output.close()
 
     try:
-        ids = re.findall('(tt\d{4,8})', txt)
+        ids = re.findall(r'(tt\d{4,10})', txt)
 
         if multiple:
             return removeDuplicate(['tt%s' % str(tryInt(x[2:])).rjust(7, '0') for x in ids]) if len(ids) > 0 else []
@@ -226,7 +190,7 @@ def natsortKey(string_):
 
 
 def toIterable(value):
-    if isinstance(value, collections.Iterable):
+    if isinstance(value, Iterable):
         return value
     return [value]
 
@@ -361,20 +325,8 @@ def getFreeSpace(directories):
 
         size = None
         if os.path.isdir(folder):
-            if os.name == 'nt':
-                _, total, free = ctypes.c_ulonglong(), ctypes.c_ulonglong(), \
-                                   ctypes.c_ulonglong()
-                if sys.version_info >= (3,) or isinstance(folder, unicode):
-                    fun = ctypes.windll.kernel32.GetDiskFreeSpaceExW #@UndefinedVariable
-                else:
-                    fun = ctypes.windll.kernel32.GetDiskFreeSpaceExA #@UndefinedVariable
-                ret = fun(folder, ctypes.byref(_), ctypes.byref(total), ctypes.byref(free))
-                if ret == 0:
-                    raise ctypes.WinError()
-                return [total.value, free.value]
-            else:
-                s = os.statvfs(folder)
-                size = [s.f_blocks * s.f_frsize / (1024 * 1024), (s.f_bavail * s.f_frsize) / (1024 * 1024)]
+            usage = shutil.disk_usage(folder)
+            size = [usage.total / (1024 * 1024), usage.free / (1024 * 1024)]
 
         if single: return size
 
@@ -416,4 +368,6 @@ def find(func, iterable):
 def compareVersions(version1, version2):
     def normalize(v):
         return [int(x) for x in re.sub(r'(\.0+)*$','', v).split(".")]
-    return cmp(normalize(version1), normalize(version2))
+    normalized1 = normalize(version1)
+    normalized2 = normalize(version2)
+    return (normalized1 > normalized2) - (normalized1 < normalized2)

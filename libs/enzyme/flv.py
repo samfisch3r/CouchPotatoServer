@@ -17,8 +17,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with enzyme.  If not, see <http://www.gnu.org/licenses/>.
-from exceptions import ParseError
-import core
+from .exceptions import ParseError
+from . import core
 import logging
 import struct
 

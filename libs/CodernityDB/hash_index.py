@@ -26,6 +26,7 @@ from CodernityDB.index import (Index,
 import os
 import marshal
 import io
+import sys
 import struct
 import shutil
 
@@ -41,6 +42,39 @@ from CodernityDB.rr_cache import cache1lvl
 
 
 from CodernityDB.misc import random_hex_32
+
+
+class _BinaryStruct:
+    def __init__(self, format):
+        self._struct = struct.Struct(format)
+
+    def pack(self, *values):
+        return self._struct.pack(*(
+            value.encode('utf-8') if isinstance(value, str) else value
+            for value in values
+        ))
+
+    def unpack(self, data):
+        return self._struct.unpack(data)
+
+
+def _python2_string_hash(value):
+    bits = sys.hash_info.width
+    mask = (1 << bits) - 1
+    value = value if isinstance(value, bytes) else value.encode('utf-8')
+    if not value:
+        return 0
+
+    result = value[0] << 7
+    for byte in value:
+        result = ((1000003 * result) ^ byte) & mask
+    result ^= len(value)
+    if result == mask:
+        result = mask - 1
+    if result >= 1 << (bits - 1):
+        result -= 1 << bits
+    return result
+
 
 try:
     from CodernityDB import __version__
@@ -76,7 +110,7 @@ class IU_HashIndex(Index):
         self.hash_lim = hash_lim
         if not storage_class:
             storage_class = IU_Storage
-        if storage_class and not isinstance(storage_class, basestring):
+        if storage_class and not isinstance(storage_class, (str, bytes)):
             storage_class = storage_class.__name__
         self.storage_class = storage_class
         self.storage = None
@@ -89,8 +123,8 @@ class IU_HashIndex(Index):
         cache = cache1lvl(100)
         self._find_key = cache(self._find_key)
         self._locate_doc_id = cache(self._locate_doc_id)
-        self.bucket_struct = struct.Struct(self.bucket_line_format)
-        self.entry_struct = struct.Struct(self.entry_line_format)
+        self.bucket_struct = _BinaryStruct(self.bucket_line_format)
+        self.entry_struct = _BinaryStruct(self.entry_line_format)
         self.data_start = (
             self.hash_lim + 1) * self.bucket_line_size + self._start_ind + 2
 
@@ -98,8 +132,8 @@ class IU_HashIndex(Index):
         super(IU_HashIndex, self)._fix_params()
         self.bucket_line_size = struct.calcsize(self.bucket_line_format)
         self.entry_line_size = struct.calcsize(self.entry_line_format)
-        self.bucket_struct = struct.Struct(self.bucket_line_format)
-        self.entry_struct = struct.Struct(self.entry_line_format)
+        self.bucket_struct = _BinaryStruct(self.bucket_line_format)
+        self.entry_struct = _BinaryStruct(self.entry_line_format)
         self.data_start = (
             self.hash_lim + 1) * self.bucket_line_size + self._start_ind + 2
 
@@ -208,7 +242,7 @@ class IU_HashIndex(Index):
                 location = _next
 
     def _calculate_position(self, key):
-        return abs(hash(key) & self.hash_lim) * self.bucket_line_size + self._start_ind
+        return abs(_python2_string_hash(key) & self.hash_lim) * self.bucket_line_size + self._start_ind
 
     # TODO add cache!
     def _locate_key(self, key, start):
@@ -288,6 +322,8 @@ class IU_HashIndex(Index):
                 location = _next  # go to next record
 
     def update(self, doc_id, key, u_start=0, u_size=0, u_status='o'):
+        doc_id = self._as_bytes(doc_id)
+        key = self._as_bytes(key)
         start_position = self._calculate_position(key)
         self.buckets.seek(start_position)
         curr_data = self.buckets.read(self.bucket_line_size)
@@ -310,6 +346,8 @@ class IU_HashIndex(Index):
         return True
 
     def insert(self, doc_id, key, start, size, status='o'):
+        doc_id = self._as_bytes(doc_id)
+        key = self._as_bytes(key)
         start_position = self._calculate_position(key)
         self.buckets.seek(start_position)
         curr_data = self.buckets.read(self.bucket_line_size)
@@ -476,7 +514,7 @@ class IU_HashIndex(Index):
         gen = self.all()
         while True:
             try:
-                doc_id, key, start, size, status = gen.next()
+                doc_id, key, start, size, status = next(gen)
             except StopIteration:
                 break
             self.storage._f.seek(start)
@@ -503,6 +541,16 @@ class IU_HashIndex(Index):
 
     def make_key(self, key):
         return key
+
+    @staticmethod
+    def _as_bytes(value):
+        return value.encode('utf-8') if isinstance(value, str) else value
+
+    def get(self, key):
+        return self._find_key(self._as_bytes(self.make_key(key)))
+
+    def get_many(self, key, limit=1, offset=0):
+        return self._find_key_many(self._as_bytes(self.make_key(key)), limit, offset)
 
     def make_key_value(self, data):
         return '1', data
@@ -605,6 +653,8 @@ class IU_UniqueHashIndex(IU_HashIndex):
         return self.buckets.tell() - self.entry_line_size, l_key, rev, start, size, status, _next
 
     def update(self, key, rev, u_start=0, u_size=0, u_status='o'):
+        key = self._as_bytes(key)
+        rev = self._as_bytes(rev)
         start_position = self._calculate_position(key)
         self.buckets.seek(start_position)
         curr_data = self.buckets.read(self.bucket_line_size)
@@ -632,6 +682,8 @@ class IU_UniqueHashIndex(IU_HashIndex):
         return True
 
     def insert(self, key, rev, start, size, status='o'):
+        key = self._as_bytes(key)
+        rev = self._as_bytes(rev)
         start_position = self._calculate_position(key)
         self.buckets.seek(start_position)
         curr_data = self.buckets.read(self.bucket_line_size)
@@ -731,7 +783,7 @@ class IU_UniqueHashIndex(IU_HashIndex):
     def make_key_value(self, data):
         _id = data['_id']
         try:
-            _id = bytes(data['_id'])
+            _id = self._as_bytes(data['_id'])
         except:
             raise IndexPreconditionsException(
                 "_id must be valid string/bytes object")

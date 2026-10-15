@@ -907,9 +907,6 @@ Option.Directory = new Class({
 			var prev_dirname = self.getCurrentDirname(previous_dir);
 			if(previous_dir == json.home)
 				prev_dirname = 'Home Folder';
-			else if(previous_dir == '/' && json.platform == 'nt')
-				prev_dirname = 'Computer';
-
 			self.back_button.set('data-value', previous_dir);
 			self.back_button.set('html', '&laquo; ' + prev_dirname);
 			self.back_button.show();

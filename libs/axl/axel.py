@@ -12,7 +12,7 @@
 # Source: http://pypi.python.org/pypi/axel
 # Docs:   http://packages.python.org/axel
 
-from Queue import Empty, Queue
+from queue import Empty, Queue
 import hashlib
 import sys
 import threading
@@ -109,7 +109,7 @@ class Event(object):
         self.memoize = {}
 
     def hash(self, handler):
-        return hashlib.md5(str(handler)).hexdigest()
+        return hashlib.md5(str(handler).encode('utf-8')).hexdigest()
 
     def handle(self, handler, priority = 0):
         """ Registers a handler. The handler can be transmitted together
@@ -161,7 +161,7 @@ class Event(object):
                 t.daemon = True
                 t.start()
 
-            handler_keys = self.handlers.keys()
+            handler_keys = list(self.handlers)
             handler_keys.sort(key = natsortKey)
 
             for handler in handler_keys:

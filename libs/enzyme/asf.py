@@ -18,8 +18,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with enzyme.  If not, see <http://www.gnu.org/licenses/>.
-from exceptions import ParseError
-import core
+from .exceptions import ParseError
+from . import core
 import logging
 import string
 import struct
@@ -334,7 +334,7 @@ class Asf(core.AVContainer):
             for i in range(0, count):
                 idlen = struct.unpack('<B', s[pos:pos + 1])[0]
                 idstring = s[pos + 1:pos + 1 + idlen]
-                idstring = unicode(idstring, 'utf-16').replace('\0', '')
+                idstring = idstring.decode('utf-16').replace('\0', '')
                 log.debug(u'Language: %d/%d: %r' % (i + 1, count, idstring))
                 self._languages.append(idstring)
                 pos += 1 + idlen

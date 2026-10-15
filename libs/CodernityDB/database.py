@@ -45,6 +45,10 @@ from random import randrange
 import warnings
 
 
+def _metadata_text(value):
+    return value.decode('utf-8', 'replace') if isinstance(value, bytes) else value
+
+
 def header_for_indexes(index_name, index_class, db_custom="", ind_custom="", classes_code=""):
     return """# %s
 # %s
@@ -173,7 +177,7 @@ class Database(object):
         classes_code = ""
         for curr in cls_code:
             classes_code += getsource(curr) + '\n\n'
-        with io.FileIO(os.path.join(p, "%.2d%s" % (i, index.name) + '.py'), 'w') as f:
+        with open(os.path.join(p, "%.2d%s" % (i, index.name) + '.py'), 'w', encoding='utf-8') as f:
             f.write(header_for_indexes(index.name,
                                        index.__class__.__name__,
                                        getattr(self, 'custom_header', ''),
@@ -193,13 +197,13 @@ class Database(object):
         :param ind: index name (will be joined with *p*)
         :returns: new index object
         """
-        with io.FileIO(os.path.join(p, ind), 'r') as f:
+        with open(os.path.join(p, ind), 'r', encoding='utf-8') as f:
             name = f.readline()[2:].strip()
             _class = f.readline()[2:].strip()
             code = f.read()
         try:
             obj = compile(code, '<Index: %s' % os.path.join(p, ind), 'exec')
-            exec obj in globals()
+            exec(obj, globals())
             ind_obj = globals()[_class](self.path, name, **ind_kwargs)
             ind_obj._order = int(ind[:2])
         except:
@@ -221,7 +225,7 @@ class Database(object):
         if ind_kwargs is None:
             ind_kwargs = {}
         p = os.path.join(self.path, '_indexes')
-        if isinstance(new_index, basestring) and not new_index.startswith("path:"):
+        if isinstance(new_index, (str, bytes)) and not new_index.startswith("path:"):
             if len(new_index.splitlines()) < 4 or new_index.splitlines()[3] != '# inserted automatically':
                 from indexcreator import Parser
                 par = Parser()
@@ -259,12 +263,12 @@ class Database(object):
             ind_path_f = os.path.join(p, ind_path + '.py')
             if os.path.exists(ind_path_f):
                 os.rename(ind_path_f, ind_path_f + '_last')  # save last working index code
-            with io.FileIO(ind_path_f, 'w') as f:
+            with open(ind_path_f, 'w', encoding='utf-8') as f:
                 f.write(new_index)
 
             ind_obj = self._read_index_single(p, ind_path + '.py')
 
-        elif isinstance(new_index, basestring) and new_index.startswith("path:"):
+        elif isinstance(new_index, (str, bytes)) and new_index.startswith("path:"):
             path = new_index[5:]
             if not path.endswith('.py'):
                 path += '.py'
@@ -276,7 +280,7 @@ class Database(object):
             # it will first save index as a string, and then compile it
             # it will allow to control the index object on the DB side
             ind = new_index
-            init_arguments = new_index.__class__.__init__.im_func.func_code.co_varnames[
+            init_arguments = new_index.__class__.__init__.__code__.co_varnames[
                 3:]  # ignore self, path and name
             for curr in init_arguments:
                 if curr not in ('args', 'kwargs'):
@@ -402,7 +406,7 @@ class Database(object):
         ind = self.indexes_names[index_name]
         name = "%.2d%s" % (ind._order, index_name)
         name += '.py'
-        with io.FileIO(os.path.join(self.path, '_indexes', name), 'r') as f:
+        with open(os.path.join(self.path, '_indexes', name), 'r', encoding='utf-8') as f:
             co = f.read()
             if code_switch == 'All':
                 return co
@@ -662,7 +666,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         """
         _id, value = self.id_ind.make_key_value(data)
         db_data = self.get('id', _id)
-        if db_data['_rev'] != _rev:
+        if _metadata_text(db_data['_rev']) != _metadata_text(_rev):
             raise RevConflict()
         new_rev = self.create_new_rev(_rev)
         # storage = self.storage
@@ -757,7 +761,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         Performs delete operation on all indexes in order
         """
         old_data = self.get('id', _id)
-        if old_data['_rev'] != _rev:
+        if _metadata_text(old_data['_rev']) != _metadata_text(_rev):
             raise RevConflict()
         for index in self.indexes[1:]:
             self._single_delete_index(index, data, _id, old_data)
@@ -770,7 +774,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         :param index: the index to destroy
         :type index: :py:class:`CodernityDB.index.Index`` instance, or string
         """
-        if isinstance(index, basestring):
+        if isinstance(index, (str, bytes)):
             if not index in self.indexes_names:
                 raise PreconditionsException("No index named %s" % index)
             index = self.indexes_names[index]
@@ -796,7 +800,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         :param index: the index to destroy
         :type index: :py:class:`CodernityDB.index.Index`` instance, or string
         """
-        if isinstance(index, basestring):
+        if isinstance(index, (str, bytes)):
             if not index in self.indexes_names:
                 raise PreconditionsException("No index named %s" % index)
             index = self.indexes_names[index]
@@ -832,7 +836,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         :param index: the index to reindex
         :type index: :py:class:`CodernityDB.index.Index`` instance, or string
         """
-        if isinstance(index, basestring):
+        if isinstance(index, (str, bytes)):
             if not index in self.indexes_names:
                 raise PreconditionsException("No index named %s" % index)
             index = self.indexes_names[index]
@@ -853,7 +857,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
 
         while True:
             try:
-                curr = all_iter.next()
+                curr = next(all_iter)
             except StopIteration:
                 break
             else:
@@ -891,7 +895,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         data['_rev'] = _rev  # for make_key_value compat with update / delete
         data['_id'] = _id
         self._insert_indexes(_rev, data)
-        ret = {'_id': _id, '_rev': _rev}
+        ret = {'_id': _metadata_text(_id), '_rev': _metadata_text(_rev)}
         data.update(ret)
         return ret
 
@@ -909,13 +913,13 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
             raise PreconditionsException("Can't update without _rev or _id")
         _rev = data['_rev']
         try:
-            _rev = bytes(_rev)
-        except:
+            _rev = _rev.encode('utf-8') if isinstance(_rev, str) else bytes(_rev)
+        except (TypeError, ValueError):
             self.__not_opened()
             raise PreconditionsException(
                 "`_rev` must be valid bytes object")
         _id, new_rev = self._update_indexes(_rev, data)
-        ret = {'_id': _id, '_rev': new_rev}
+        ret = {'_id': _metadata_text(_id), '_rev': _metadata_text(new_rev)}
         data.update(ret)
         return ret
 
@@ -957,11 +961,11 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                 data['doc'] = doc
             else:
                 data = {'doc': doc}
-        data['_id'] = l_key
+        data['_id'] = _metadata_text(l_key)
         if index_name == 'id':
-            data['_rev'] = _unk
+            data['_rev'] = _metadata_text(_unk)
         else:
-            data['key'] = _unk
+            data['key'] = _metadata_text(_unk)
         return data
 
     def get_many(self, index_name, key=None, limit=-1, offset=0, with_doc=False, with_storage=True, start=None, end=None, **kwargs):
@@ -997,7 +1001,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         while True:
             try:
 #                l_key, start, size, status = gen.next()
-                ind_data = gen.next()
+                ind_data = next(gen)
             except StopIteration:
                 break
             else:
@@ -1012,9 +1016,9 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                         data['doc'] = doc
                     else:
                         data = {'doc': doc}
-                data['_id'] = doc_id
+                data['_id'] = _metadata_text(doc_id)
                 if key is None:
-                    data['key'] = ind_data[1]
+                    data['key'] = _metadata_text(ind_data[1])
                 yield data
 
     def all(self, index_name, limit=-1, offset=0, with_doc=False, with_storage=True):
@@ -1037,7 +1041,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         gen = ind.all(limit, offset)
         while True:
             try:
-                doc_id, unk, start, size, status = gen.next()
+                doc_id, unk, start, size, status = next(gen)
             except StopIteration:
                 break
             else:
@@ -1046,21 +1050,21 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                         data = storage.get(start, size, status)
                     else:
                         data = {}
-                    data['_id'] = doc_id
-                    data['_rev'] = unk
+                    data['_id'] = _metadata_text(doc_id)
+                    data['_rev'] = _metadata_text(unk)
                 else:
                     data = {}
                     if with_storage and size:
                         data['value'] = storage.get(start, size, status)
-                    data['key'] = unk
-                    data['_id'] = doc_id
+                    data['key'] = _metadata_text(unk)
+                    data['_id'] = _metadata_text(doc_id)
                     if with_doc:
                         doc = self.get('id', doc_id, False)
                         data['doc'] = doc
                 yield data
 
     def run(self, index_name, target_funct, *args, **kwargs):
-        """
+        r"""
         Allows to execute given function on Database side
         (important for server mode)
 
@@ -1105,7 +1109,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         i = 0
         while True:
             try:
-                iter_.next()
+                next(iter_)
                 i += 1
             except StopIteration:
                 break
@@ -1124,9 +1128,9 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         _id = data['_id']
         _rev = data['_rev']
         try:
-            _id = bytes(_id)
-            _rev = bytes(_rev)
-        except:
+            _id = _id.encode('utf-8') if isinstance(_id, str) else bytes(_id)
+            _rev = _rev.encode('utf-8') if isinstance(_rev, str) else bytes(_rev)
+        except (TypeError, ValueError):
             raise PreconditionsException(
                 "`_id` and `_rev` must be valid bytes object")
         data['_deleted'] = True
@@ -1194,7 +1198,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
             raise IndexNotFoundException("Index doesn't exist")
 
         props = {}
-        for key, value in db_index.__dict__.iteritems():
+        for key, value in db_index.__dict__.items():
             if not callable(value):  # not using inspect etc...
                 props[key] = value
 

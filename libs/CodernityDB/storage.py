@@ -74,6 +74,18 @@ class DummyStorage(object):
         pass
 
 
+def _decode_bytes(obj):
+    if isinstance(obj, bytes):
+        return obj.decode('utf-8', 'surrogateescape')
+    elif isinstance(obj, dict):
+        return {_decode_bytes(k): _decode_bytes(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_decode_bytes(x) for x in obj]
+    elif isinstance(obj, tuple):
+        return tuple(_decode_bytes(x) for x in obj)
+    return obj
+
+
 class IU_Storage(object):
 
     __version__ = __version__
@@ -87,7 +99,7 @@ class IU_Storage(object):
         if os.path.exists(os.path.join(self.db_path, self.name + "_stor")):
             raise IOError("Storage already exists!")
         with io.open(os.path.join(self.db_path, self.name + "_stor"), 'wb') as f:
-            f.write(struct.pack("10s90s", self.__version__, '|||||'))
+            f.write(struct.pack("10s90s", self.__version__.encode('ascii'), b'|||||'))
             f.close()
         self._f = io.open(os.path.join(
             self.db_path, self.name + "_stor"), 'r+b', buffering=0)
@@ -111,7 +123,7 @@ class IU_Storage(object):
         # self.fsync()
 
     def data_from(self, data):
-        return marshal.loads(data)
+        return _decode_bytes(marshal.loads(data))
 
     def data_to(self, data):
         return marshal.dumps(data)

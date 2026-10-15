@@ -68,7 +68,7 @@ class Parser(object):
                       'infix': (['self.infix'], []),
                       'suffix': (['self.suffix'], [])
                       }
-        self.handle_int_imports = {'infix': "from itertools import izip\n"}
+        self.handle_int_imports = {'infix': "try:\n    from itertools import izip\nexcept ImportError:\n    izip = zip\n"}
 
         self.funcs_with_body = {'fix_r':
                                 ("""    def fix_r(self,s,l):
@@ -111,9 +111,9 @@ class Parser(object):
                                 ("""    def infix(self,s,m,l,f):
         t = len(s)
         o = set()
-        for x in xrange(m - 1, l):
+        for x in range(m - 1, l):
             t = (s, )
-            for y in xrange(0, x):
+            for y in range(0, x):
                 t += (s[y + 1:],)
             o.update(set(''.join(x).rjust(f, '_').lower() for x in izip(*t)))
         return o\n""", False)}
@@ -172,20 +172,20 @@ class Parser(object):
         }
 
         def is_num(s):
-            m = re.search('[^0-9*()+\-\s/]+', s)
+            m = re.search(r'[^0-9*()+\-\s/]+', s)
             return not m
 
         def is_string(s):
-            m = re.search('\s*(?P<a>[\'\"]+).*?(?P=a)\s*', s)
+            m = re.search(r'\s*(?P<a>[\'\"]+).*?(?P=a)\s*', s)
             return m
-        data = re.split('make_key_value\:', data)
+        data = re.split(r'make_key_value\:', data)
 
         if len(data) < 2:
             raise IndexCreatorFunctionException(
                 "Couldn't find a definition of make_key_value function!\n")
 
-        spl1 = re.split('make_key\:', data[0])
-        spl2 = re.split('make_key\:', data[1])
+        spl1 = re.split(r'make_key\:', data[0])
+        spl2 = re.split(r'make_key\:', data[1])
 
         self.funcs_rev = False
 
@@ -197,13 +197,13 @@ class Parser(object):
         else:
             data.append("key")
 
-        if data[1] == re.search('\s*', data[1], re.S | re.M).group(0):
+        if data[1] == re.search(r'\s*', data[1], re.S | re.M).group(0):
             raise IndexCreatorFunctionException("Empty function body ",
                                                 len(re.split('\n', data[0])) + (len(re.split('\n', data[2])) if self.funcs_rev else 1) - 1)
-        if data[2] == re.search('\s*', data[2], re.S | re.M).group(0):
+        if data[2] == re.search(r'\s*', data[2], re.S | re.M).group(0):
             raise IndexCreatorFunctionException("Empty function body ",
                                                 len(re.split('\n', data[0])) + (1 if self.funcs_rev else len(re.split('\n', data[1]))) - 1)
-        if data[0] == re.search('\s*', data[0], re.S | re.M).group(0):
+        if data[0] == re.search(r'\s*', data[0], re.S | re.M).group(0):
             raise IndexCreatorValueException("You didn't set any properity or you set them not at the begining of the code\n")
 
         data = [re.split(
@@ -219,7 +219,7 @@ class Parser(object):
                         s = self.predata[0][i][k + 1:]
                         self.predata[0][i] = self.predata[0][i][:k + 1]
 
-                        m = re.search('\s+', s.strip())
+                        m = re.search(r'\s+', s.strip())
                         if not is_string(s) and not m:
                             s = "'" + s.strip() + "'"
                         self.predata[0][i] += s
@@ -275,7 +275,7 @@ class Parser(object):
         self.tokens = []
         self.tokens_head = ['# %s\n' % self.name, 'class %s(' % self.name, '):\n', '    def __init__(self, *args, **kwargs):        ']
 
-        for i in xrange(3):
+        for i in range(3):
             tokenize.tokenize(self.readline(i), self.add(self.pre_tokens, i))
             # tokenize treats some keyword not in the right way, thats why we
             # have to change some of them
@@ -540,7 +540,7 @@ class Parser(object):
                         "Wrong value to assign", self.cnt_line_nr(line, 0))
 
                 if t == token.STRING:
-                    m = re.search('\s*(?P<a>[\'\"]+)(.*?)(?P=a)\s*', tk)
+                    m = re.search(r'\s*(?P<a>[\'\"]+)(.*?)(?P=a)\s*', tk)
                     if m:
                         tk = m.groups()[1]
                 elif t != token.NAME:

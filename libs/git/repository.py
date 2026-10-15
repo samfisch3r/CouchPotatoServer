@@ -22,9 +22,10 @@
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from collections import Sequence
+from collections.abc import Sequence
 import re
 import os
+import io
 import subprocess
 import sys
 
@@ -48,6 +49,15 @@ from .exceptions import NonexistentRefException
 
 BRANCH_ALIAS_MARKER = ' -> '
 
+
+class _GitCommandResult:
+
+    def __init__(self, returncode, stdout, stderr):
+        self.returncode = returncode
+        self.stdout = io.StringIO(stdout)
+        self.stderr = io.StringIO(stderr)
+
+
 class Repository(ref_container.RefContainer):
 
     _git_command = None
@@ -60,24 +70,30 @@ class Repository(ref_container.RefContainer):
         return '.'
     def _logGitCommand(self, command, cwd):
         if self._loggingEnabled:
-            print >> sys.stderr, ">>", command
+            print(">>", command, file=sys.stderr)
     def enableLogging(self):
         self._loggingEnabled = True
     def disableLogging(self):
         self._loggingEnabled = False
     def _executeGitCommand(self, command, cwd = None):
-        if cwd is None:
+        if not cwd:
             cwd = self._getWorkingDirectory()
+        if not cwd:
+            cwd = '.'
         command = '%s %s' % (self._git_command, str(command))
 
         self._logGitCommand(command, cwd)
-        returned = subprocess.Popen(command,
-                                    shell = True,
-                                    cwd = cwd,
-                                    stdout = subprocess.PIPE,
-                                    stderr = subprocess.PIPE)
-        returned.wait()
-        return returned
+        returned = subprocess.run(
+            command,
+            shell=True,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='surrogateescape',
+        )
+        return _GitCommandResult(
+            returned.returncode, returned.stdout, returned.stderr)
     def _executeGitCommandAssertSuccess(self, command, **kwargs):
         returned = self._executeGitCommand(command, **kwargs)
         assert returned.returncode is not None
@@ -162,7 +178,7 @@ class LocalRepository(Repository):
             repo = repo.path
         elif isinstance(repo, RemoteRepository):
             repo = repo.url
-        elif not isinstance(repo, basestring):
+        elif not isinstance(repo, str):
             raise TypeError("Cannot clone from %r" % (repo,))
         return repo
     def clone(self, repo):
@@ -280,7 +296,7 @@ class LocalRepository(Repository):
     def isWorkingDirectoryClean(self):
         return not (self.getUntrackedFiles() or self.getChangedFiles() or self.getStagedFiles())
     def __contains__(self, thing):
-        if isinstance(thing, basestring) or isinstance(thing, commit.Commit):
+        if isinstance(thing, str) or isinstance(thing, commit.Commit):
             return self.containsCommit(thing)
         raise NotImplementedError()
     ################################ Staging content ###############################
@@ -345,7 +361,7 @@ class LocalRepository(Repository):
                                                      "--no-ff" if not allowFastForward else None,
                                                      "--log" if log else None,
                                                      ("-m \"%s\"" % message) if message is not None else None))
-        except GitCommandFailedException, e:
+        except GitCommandFailedException as e:
             # git-merge tends to ignore the stderr rule...
             output = e.stdout + e.stderr
             if 'conflict' in output.lower():
@@ -413,7 +429,7 @@ class LocalRepository(Repository):
             remote = remote.url
         elif isinstance(remote, LocalRepository):
             remote = remote.path
-        if remote is not None and not isinstance(remote, basestring):
+        if remote is not None and not isinstance(remote, str):
             raise TypeError("Invalid type for 'remote' parameter: %s" % (type(remote),))
         command = "push %s %s" % (remote if remote is not None else "", refspec)
         self._executeGitCommandAssertSuccess(command)
@@ -449,4 +465,3 @@ def find_repository():
         path, path_tail = os.path.split(current_path)
         if not path_tail:
             raise CannotFindRepository("Cannot find repository for %s" % (orig_path,))
-

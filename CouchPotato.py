@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 from __future__ import print_function
 from logging import handlers
 from os.path import dirname
@@ -14,8 +14,8 @@ import traceback
 # Root path
 base_path = dirname(os.path.abspath(__file__))
 
-# Insert local directories into path
-sys.path.insert(0, os.path.join(base_path, 'libs'))
+# Keep installed dependencies ahead of the legacy bundled libraries.
+sys.path.append(os.path.join(base_path, 'libs'))
 
 from couchpotato.environment import Env
 from couchpotato.core.helpers.variable import getDataDir, removePyc

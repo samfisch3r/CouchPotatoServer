@@ -24,8 +24,8 @@ import os
 import struct
 import logging
 import stat
-from exceptions import ParseError
-import core
+from .exceptions import ParseError
+from . import core
 
 # get logging object
 log = logging.getLogger(__name__)

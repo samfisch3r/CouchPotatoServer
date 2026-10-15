@@ -15,14 +15,44 @@ from couchpotato.core.helpers.variable import getExt, mergeDicts, getTitle, \
 from couchpotato.core.logger import CPLog
 from couchpotato.core.plugins.base import Plugin
 from couchpotato.environment import Env
-from unrar2 import RarFile
-import six
-from six.moves import filter
+import rarfile
 
 
 log = CPLog(__name__)
 
 autoload = 'Renamer'
+
+
+def _extractRarFiles(archive_path, destination, unrar_path=None):
+    if unrar_path:
+        rarfile.UNRAR_TOOL = unrar_path
+        rarfile.tool_setup(force=True)
+
+    extracted = []
+    with rarfile.RarFile(archive_path) as archive:
+        for info in archive.infolist():
+            filename = os.path.basename(info.filename.replace('\\', '/'))
+            if info.is_dir() or not filename:
+                continue
+
+            target = os.path.join(destination, filename)
+            log.debug('Extracting %s...', info.filename)
+            try:
+                output = open(target, 'xb')
+            except FileExistsError:
+                continue
+
+            try:
+                with output:
+                    with archive.open(info) as source:
+                        shutil.copyfileobj(source, output)
+            except Exception:
+                os.remove(target)
+                raise
+
+            extracted.append(target)
+
+    return extracted
 
 
 class Renamer(Plugin):
@@ -40,8 +70,7 @@ class Renamer(Plugin):
                 'files': {'desc': 'Optional: Provide the release files if more releases are in the same media_folder, delimited with a \'|\'. Note that no dedicated release folder is expected for releases with one file.'},
                 'base_folder': {'desc': 'Optional: The folder to find releases in. Leave empty for default folder.'},
                 'downloader': {'desc': 'Optional: The downloader the release has been downloaded with. \'download_id\' is required with this option.'},
-                'download_id': {'desc': 'Optional: The nzb/torrent ID of the release in media_folder. \'downloader\' is required with this option.'},
-                'status': {'desc': 'Optional: The status of the release: \'completed\' (default) or \'seeding\''},
+                'download_id': {'desc': 'Optional: The NZB ID of the release in media_folder. \'downloader\' is required with this option.'},
             },
         })
 
@@ -82,7 +111,7 @@ class Renamer(Plugin):
 
     def scanView(self, **kwargs):
 
-        async = tryInt(kwargs.get('async', 0))
+        run_async = tryInt(kwargs.get('async', 0))
         base_folder = kwargs.get('base_folder')
         media_folder = sp(kwargs.get('media_folder'))
         to_folder = kwargs.get('to_folder')
@@ -94,8 +123,6 @@ class Renamer(Plugin):
         downloader = kwargs.get('downloader')
         download_id = kwargs.get('download_id')
         files = [sp(filename) for filename in splitString(kwargs.get('files'), '|')]
-        status = kwargs.get('status', 'completed')
-
         release_download = None
         if not base_folder and media_folder:
             release_download = {'folder': media_folder}
@@ -104,11 +131,11 @@ class Renamer(Plugin):
                 release_download.update({
                     'id': download_id,
                     'downloader': downloader,
-                    'status': status,
+                    'status': 'completed',
                     'files': files
                 })
 
-        fire_handle = fireEvent if not async else fireEventAsync
+        fire_handle = fireEvent if not run_async else fireEventAsync
         fire_handle('renamer.scan', base_folder = base_folder, release_download = release_download, to_folder = to_folder)
 
         return {
@@ -205,7 +232,7 @@ class Renamer(Plugin):
             if release_files:
                 files = release_files
 
-                # If there is only one file in the torrent, the downloader did not create a subfolder
+                # A downloader may return the single file instead of a containing folder.
                 if len(release_files) == 1:
                     folder = media_folder
             else:
@@ -223,11 +250,8 @@ class Renamer(Plugin):
 
         # Extend the download info with info stored in the downloaded release
         keep_original = self.moveTypeIsLinked()
-        is_torrent = False
         if release_download:
             release_download = self.extendReleaseDownload(release_download)
-            is_torrent = self.downloadIsTorrent(release_download)
-            keep_original = True if is_torrent and self.conf('file_action') not in ['move'] else keep_original
 
         # Unpack any archives
         extr_files = None
@@ -369,7 +393,7 @@ class Renamer(Plugin):
                 for file_type in group['files']:
 
                     # Move nfo depending on settings
-                    if file_type is 'nfo' and not self.conf('rename_nfo'):
+                    if file_type == 'nfo' and not self.conf('rename_nfo'):
                         log.debug('Skipping, renaming of %s disabled', file_type)
                         for current_file in group['files'][file_type]:
                             if self.conf('cleanup') and (not keep_original or self.fileIsAdded(current_file, group)):
@@ -377,7 +401,7 @@ class Renamer(Plugin):
                         continue
 
                     # Subtitle extra
-                    if file_type is 'subtitle_extra':
+                    if file_type == 'subtitle_extra':
                         continue
 
                     # Move other files
@@ -407,13 +431,13 @@ class Renamer(Plugin):
                         replacements['filename'] = final_file_name[:-(len(getExt(final_file_name)) + 1)]
 
                         # Meta naming
-                        if file_type is 'trailer':
+                        if file_type == 'trailer':
                             final_file_name = self.doReplace(trailer_name, replacements, remove_multiple = True)
-                        elif file_type is 'nfo':
+                        elif file_type == 'nfo':
                             final_file_name = self.doReplace(nfo_name, replacements, remove_multiple = True)
 
                         # Move DVD files (no structure renaming)
-                        if group['is_dvd'] and file_type is 'movie':
+                        if group['is_dvd'] and file_type == 'movie':
                             found = False
                             for top_dir in ['video_ts', 'audio_ts', 'bdmv', 'certificate']:
                                 has_string = current_file.lower().find(os.path.sep + top_dir + os.path.sep)
@@ -428,14 +452,14 @@ class Renamer(Plugin):
 
                         # Do rename others
                         else:
-                            if file_type is 'leftover':
+                            if file_type == 'leftover':
                                 if self.conf('move_leftover'):
                                     rename_files[current_file] = os.path.join(destination, final_folder_name, os.path.basename(current_file))
                             elif file_type not in ['subtitle']:
                                 rename_files[current_file] = os.path.join(destination, final_folder_name, final_file_name)
 
                         # Check for extra subtitle files
-                        if file_type is 'subtitle':
+                        if file_type == 'subtitle':
 
                             remove_multiple = False
                             if len(group['files']['movie']) == 1:
@@ -470,7 +494,7 @@ class Renamer(Plugin):
                             rename_files = mergeDicts(rename_files, rename_extras)
 
                         # Filename without cd etc
-                        elif file_type is 'movie':
+                        elif file_type == 'movie':
                             rename_extras = self.getRenameExtras(
                                 extra_type = 'movie_extra',
                                 replacements = replacements,
@@ -549,17 +573,13 @@ class Renamer(Plugin):
 
                             break
 
-                    elif release.get('status') in ['snatched', 'seeding']:
+                    elif release.get('status') == 'snatched':
                         if release_download and release_download.get('release_id'):
                             if release_download['release_id'] == release['_id']:
                                 if release_download['status'] == 'completed':
                                     # Set the release to downloaded
                                     fireEvent('release.update_status', release['_id'], status = 'downloaded', single = True)
                                     group['release_download'] = release_download
-                                    mark_as_recent = True
-                                elif release_download['status'] == 'seeding':
-                                    # Set the release to seeding
-                                    fireEvent('release.update_status', release['_id'], status = 'seeding', single = True)
                                     mark_as_recent = True
 
                         elif release.get('quality') == group['meta_data']['quality']['identifier']:
@@ -638,7 +658,7 @@ class Renamer(Plugin):
                     self.makeDir(os.path.dirname(dst))
 
                     try:
-                        self.moveFile(src, dst, use_default = not is_torrent or self.fileIsAdded(src, group))
+                        self.moveFile(src, dst)
                         group['renamed_files'].append(dst)
                     except:
                         log.error('Failed renaming the file "%s" : %s', (os.path.basename(src), traceback.format_exc()))
@@ -653,7 +673,7 @@ class Renamer(Plugin):
             else:
                 self.untagRelease(group = group, tag = 'failed_rename')
 
-            # Tag folder if it is in the 'from' folder and it will not be removed because it is a torrent
+            # Tag folders left in the source directory when linked or copied.
             if self.movieInFromFolder(media_folder) and keep_original:
                 self.tagRelease(group = group, tag = 'renamed_already')
 
@@ -828,16 +848,14 @@ Remove it if you want it to be renamed (again, or at least let it try again)
 
         return False
 
-    def moveFile(self, old, dest, use_default = False):
+    def moveFile(self, old, dest):
         dest = sp(dest)
         try:
 
             if os.path.exists(dest) and os.path.isfile(dest):
                 raise Exception('Destination "%s" already exists' % dest)
 
-            move_type = self.conf('file_action')
-            if use_default:
-                move_type = self.conf('default_file_action')
+            move_type = self.conf('default_file_action')
 
             if move_type not in ['copy', 'link', 'symlink_reversed']:
                 try:
@@ -886,8 +904,6 @@ Remove it if you want it to be renamed (again, or at least let it try again)
 
             try:
                 os.chmod(dest, Env.getPermission('file'))
-                if os.name == 'nt' and self.conf('ntfs_permission'):
-                    os.popen('icacls "' + dest + '"* /reset /T')
             except:
                 log.debug('Failed setting permissions for file: %s, %s', (dest, traceback.format_exc(1)))
         except:
@@ -911,7 +927,7 @@ Remove it if you want it to be renamed (again, or at least let it try again)
             if x in ['thename', 'namethe']:
                 continue
             if r is not None:
-                replaced = replaced.replace(six.u('<%s>') % toUnicode(x), toUnicode(r))
+                replaced = replaced.replace('<%s>' % toUnicode(x), toUnicode(r))
             else:
                 #If information is not available, we don't want the tag in the filename
                 replaced = replaced.replace('<' + x + '>', '')
@@ -921,7 +937,7 @@ Remove it if you want it to be renamed (again, or at least let it try again)
 
         for x, r in replacements.items():
             if x in ['thename', 'namethe']:
-                replaced = replaced.replace(six.u('<%s>') % toUnicode(x), toUnicode(r))
+                replaced = replaced.replace('<%s>' % toUnicode(x), toUnicode(r))
         replaced = re.sub(r"[\x00:\*\?\"<>\|]", '', replaced)
 
         sep = self.conf('foldersep') if folder else self.conf('separator')
@@ -930,8 +946,8 @@ Remove it if you want it to be renamed (again, or at least let it try again)
     def replaceDoubles(self, string):
 
         replaces = [
-            ('\.+', '.'), ('_+', '_'), ('-+', '-'), ('\s+', ' '), (' \\\\', '\\\\'), (' /', '/'),
-            ('(\s\.)+', '.'), ('(-\.)+', '.'), ('(\s-[^\s])+', '-'), (' ]', ']'),
+            (r'\.+', '.'), ('_+', '_'), ('-+', '-'), (r'\s+', ' '), (' \\\\', '\\\\'), (' /', '/'),
+            (r'(\s\.)+', '.'), (r'(-\.)+', '.'), (r'(\s-[^\s])+', '-'), (' ]', ']'),
         ]
 
         for r in replaces:
@@ -953,7 +969,7 @@ Remove it if you want it to be renamed (again, or at least let it try again)
         try:
             db = get_db()
 
-            rels = list(fireEvent('release.with_status', ['snatched', 'seeding', 'missing'], single = True))
+            rels = list(fireEvent('release.with_status', ['snatched', 'missing'], single = True))
 
             if not rels:
                 #No releases found that need status checking
@@ -1058,24 +1074,6 @@ Remove it if you want it to be renamed (again, or at least let it try again)
                         if self.movieInFromFolder(release_download['folder']):
                             self.tagRelease(release_download = release_download, tag = 'downloading')
 
-                    elif release_download['status'] == 'seeding':
-                        #If linking setting is enabled, process release
-                        if self.conf('file_action') != 'move' and not rel.get('status') == 'seeding' and self.statusInfoComplete(release_download):
-                            log.info('Download of %s completed! It is now being processed while leaving the original files alone for seeding. Current ratio: %s.', (release_download['name'], release_download['seed_ratio']))
-
-                            # Remove the downloading tag
-                            self.untagRelease(release_download = release_download, tag = 'downloading')
-
-                            # Scan and set the torrent to paused if required
-                            release_download.update({'pause': True, 'scan': True, 'process_complete': False})
-                            scan_releases.append(release_download)
-                        else:
-                            #let it seed
-                            log.debug('%s is seeding with ratio: %s', (release_download['name'], release_download['seed_ratio']))
-
-                            # Set the release to seeding
-                            fireEvent('release.update_status', rel.get('_id'), status = 'seeding', single = True)
-
                     elif release_download['status'] == 'failed':
                         # Set the release to failed
                         fireEvent('release.update_status', rel.get('_id'), status = 'failed', single = True)
@@ -1091,30 +1089,15 @@ Remove it if you want it to be renamed (again, or at least let it try again)
                         #Make sure the downloader sent over a path to look in
                         if self.statusInfoComplete(release_download):
 
-                            # If the release has been seeding, process now the seeding is done
-                            if rel.get('status') == 'seeding':
-                                if self.conf('file_action') != 'move':
-                                    # Set the release to done as the movie has already been renamed
-                                    fireEvent('release.update_status', rel.get('_id'), status = 'downloaded', single = True)
+                            # Set the release to snatched if it was missing before
+                            fireEvent('release.update_status', rel.get('_id'), status = 'snatched', single = True)
 
-                                    # Allow the downloader to clean-up
-                                    release_download.update({'pause': False, 'scan': False, 'process_complete': True})
-                                    scan_releases.append(release_download)
-                                else:
-                                    # Scan and Allow the downloader to clean-up
-                                    release_download.update({'pause': False, 'scan': True, 'process_complete': True})
-                                    scan_releases.append(release_download)
+                            # Remove the downloading tag
+                            self.untagRelease(release_download = release_download, tag = 'downloading')
 
-                            else:
-                                # Set the release to snatched if it was missing before
-                                fireEvent('release.update_status', rel.get('_id'), status = 'snatched', single = True)
-
-                                # Remove the downloading tag
-                                self.untagRelease(release_download = release_download, tag = 'downloading')
-
-                                # Scan and Allow the downloader to clean-up
-                                release_download.update({'pause': False, 'scan': True, 'process_complete': True})
-                                scan_releases.append(release_download)
+                            # Scan and allow the downloader to clean up
+                            release_download.update({'pause': False, 'scan': True, 'process_complete': True})
+                            scan_releases.append(release_download)
                         else:
                             scan_required = True
 
@@ -1125,15 +1108,14 @@ Remove it if you want it to be renamed (again, or at least let it try again)
             for release_download in scan_releases:
                 # Ask the renamer to scan the item
                 if release_download['scan']:
-                    if release_download['pause'] and self.conf('file_action') in ['link', "symlink_reversed"]:
+                    if release_download['pause'] and self.conf('default_file_action') in ['link', "symlink_reversed"]:
                         fireEvent('download.pause', release_download = release_download, pause = True, single = True)
                     self.scan(release_download = release_download)
-                    if release_download['pause'] and self.conf('file_action') in ['link', "symlink_reversed"]:
+                    if release_download['pause'] and self.conf('default_file_action') in ['link', "symlink_reversed"]:
                         fireEvent('download.pause', release_download = release_download, pause = False, single = True)
                 if release_download['process_complete']:
                     # First make sure the files were successfully processed
                     if not self.hastagRelease(release_download = release_download, tag = 'failed_rename'):
-                        # Remove the seeding tag if it exists
                         self.untagRelease(release_download = release_download, tag = 'renamed_already')
                         # Ask the downloader to process the item
                         fireEvent('download.process_complete', release_download = release_download, single = True)
@@ -1171,9 +1153,6 @@ Remove it if you want it to be renamed (again, or at least let it try again)
             })
 
         return release_download
-
-    def downloadIsTorrent(self, release_download):
-        return release_download and release_download.get('protocol') in ['torrent', 'torrent_magnet']
 
     def fileIsAdded(self, src, group):
         if not group or not group.get('before_rename'):
@@ -1217,8 +1196,8 @@ Remove it if you want it to be renamed (again, or at least let it try again)
         if not files: files = []
 
         # RegEx for finding rar files
-        archive_regex = '(?P<file>^(?P<base>(?:(?!\.part\d+\.rar$).)*)\.(?:(?:part0*1\.)?rar)$)'
-        restfile_regex = '(^%s\.(?:part(?!0*1\.rar$)\d+\.rar$|[rstuvw]\d+$))'
+        archive_regex = r'(?P<file>^(?P<base>(?:(?!\.part\d+\.rar$).)*)\.(?:(?:part0*1\.)?rar)$)'
+        restfile_regex = r'(^%s\.(?:part(?!0*1\.rar$)\d+\.rar$|[rstuvw]\d+$))'
         extr_files = []
 
         from_folder = sp(self.conf('from'))
@@ -1259,25 +1238,20 @@ Remove it if you want it to be renamed (again, or at least let it try again)
             log.info('Archive %s found. Extracting...', os.path.basename(archive['file']))
             try:
                 unrar_path = self.conf('unrar_path')
-                unrar_path = unrar_path if unrar_path and (os.path.isfile(unrar_path) or re.match('^[a-zA-Z0-9_/\.\-]+$', unrar_path)) else None
+                unrar_path = unrar_path if unrar_path and (os.path.isfile(unrar_path) or re.match(r'^[a-zA-Z0-9_/\.\-]+$', unrar_path)) else None
 
-                rar_handle = RarFile(archive['file'], custom_path = unrar_path)
                 extr_path = os.path.join(from_folder, os.path.relpath(os.path.dirname(archive['file']), folder))
                 self.makeDir(extr_path)
-                for packedinfo in rar_handle.infolist():
-                    extr_file_path = sp(os.path.join(extr_path, os.path.basename(packedinfo.filename)))
-                    if not packedinfo.isdir and not os.path.isfile(extr_file_path):
-                        log.debug('Extracting %s...', packedinfo.filename)
-                        rar_handle.extract(condition = [packedinfo.index], path = extr_path, withSubpath = False, overwrite = False)
-                        if self.conf('unrar_modify_date'):
-                            try:
-                                os.utime(extr_file_path, (os.path.getatime(archive['file']), os.path.getmtime(archive['file'])))
-                            except:
-                                log.error('Rar modify date enabled, but failed: %s', traceback.format_exc())
-                        extr_files.append(extr_file_path)
-                del rar_handle
+                extracted_files = _extractRarFiles(archive['file'], extr_path, unrar_path)
+                for extr_file_path in extracted_files:
+                    if self.conf('unrar_modify_date'):
+                        try:
+                            os.utime(extr_file_path, (os.path.getatime(archive['file']), os.path.getmtime(archive['file'])))
+                        except:
+                            log.error('Rar modify date enabled, but failed: %s', traceback.format_exc())
+                    extr_files.append(extr_file_path)
                 # Tag archive as extracted if no cleanup.
-                if not cleanup and os.path.isfile(extr_file_path):
+                if not cleanup and extracted_files:
                     self.tagRelease(release_download = {'folder': os.path.dirname(archive['file']), 'files': [archive['file']]}, tag = 'extracted')
             except Exception as e:
                 log.error('Failed to extract %s: %s %s', (archive['file'], e, traceback.format_exc()))
@@ -1300,7 +1274,7 @@ Remove it if you want it to be renamed (again, or at least let it try again)
 
                 try:
                     self.makeDir(os.path.dirname(move_to))
-                    self.moveFile(leftoverfile, move_to, cleanup)
+                    self.moveFile(leftoverfile, move_to)
                 except Exception as e:
                     log.error('Failed moving left over file %s to %s: %s %s', (leftoverfile, move_to, e, traceback.format_exc()))
                     # As we probably tried to overwrite the nfo file, check if it exists and then remove the original
@@ -1438,7 +1412,7 @@ config = [{
                 {
                     'advanced': True,
                     'name': 'unrar_path',
-                    'description': 'Custom path to unrar bin',
+                    'description': 'Custom path or command name for the RAR extraction tool. Defaults to a compatible tool on PATH.',
                 },
                 {
                     'advanced': True,
@@ -1521,24 +1495,6 @@ config = [{
                     'description': ('<strong>Link</strong>, <strong>Copy</strong> or <strong>Move</strong> after download completed.',
                                     'Link first tries <a href="http://en.wikipedia.org/wiki/Hard_link" target="_blank">hard link</a>, then <a href="http://en.wikipedia.org/wiki/Sym_link" target="_blank">sym link</a> and falls back to Copy. Reverse Symlink moves the file and creates symlink to it in the original location'),
                     'advanced': True,
-                },
-                {
-                    'name': 'file_action',
-                    'label': 'Torrent File Action',
-                    'default': 'link',
-                    'type': 'dropdown',
-                    'values': [('Link', 'link'), ('Copy', 'copy'), ('Move', 'move'), ('Reverse Symlink', 'symlink_reversed')],
-                    'description': 'See above. It is prefered to use link when downloading torrents as it will save you space, while still being able to seed.',
-                    'advanced': True,
-                },
-                {
-                    'advanced': True,
-                    'name': 'ntfs_permission',
-                    'label': 'NTFS Permission',
-                    'type': 'bool',
-                    'hidden': os.name != 'nt',
-                    'description': 'Set permission of moved files to that of destination folder (Windows NTFS only).',
-                    'default': False,
                 },
             ],
         }, {

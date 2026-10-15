@@ -38,11 +38,13 @@ class SoftChroot:
             # enabling soft-chroot:
             if not os.path.isdir(chdir):
                 raise SoftChrootInitError(2, 'SOFT-CHROOT is requested, but the folder doesn\'t exist', orig_chdir)
-            
+
             self.enabled = True
-            self.chdir = chdir.rstrip(os.path.sep) + os.path.sep
+            self.sep = '/' if '/' in chdir and os.path.sep not in chdir else os.path.sep
+            self.chdir = chdir.rstrip('/\\') + self.sep
         else:
             self.enabled = False
+            self.sep = os.path.sep
 
     def get_chroot(self):
         """Returns root in chrooted environment
@@ -71,7 +73,7 @@ class SoftChroot:
             return parent==abspath
 
         # in soft-chrooted env: check, that path == chroot
-        path = abspath.rstrip(os.path.sep) + os.path.sep
+        path = abspath.rstrip('/\\') + self.sep
         return self.chdir == path
 
     def is_subdir(self, abspath):
@@ -85,10 +87,10 @@ class SoftChroot:
         if not self.enabled:
             return True
 
-        if not abspath.endswith(os.path.sep):
-            abspath += os.path.sep
+        if not (abspath.endswith('/') or abspath.endswith('\\')):
+            abspath += self.sep
 
-        return abspath.startswith(self.chdir)
+        return abspath.startswith(self.chdir) or (abspath.rstrip('/\\') + self.sep) == self.chdir
 
     def chroot2abs(self, path):
         """ Converts chrooted path to absolute path"""
@@ -101,8 +103,10 @@ class SoftChroot:
         if None == path or len(path)==0:
             return self.chdir
 
-        if not path.startswith(os.path.sep):
-            path = os.path.sep + path
+        if not path.startswith(self.sep) and not path.startswith('/'):
+            path = self.sep + path
+        elif path.startswith('/') and self.sep != '/':
+            path = self.sep + path[1:]
 
         return self.chdir[:-1] + path
 
@@ -118,10 +122,10 @@ class SoftChroot:
         if not self.enabled:
             return path
 
-        if path == self.chdir.rstrip(os.path.sep):
+        if path.rstrip('/\\') == self.chdir.rstrip('/\\'):
             return '/'
 
-        resulst = None
+        result = None
         if not path.startswith(self.chdir):
             if (force):
                 result = self.get_chroot()

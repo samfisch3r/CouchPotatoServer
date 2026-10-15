@@ -58,10 +58,6 @@ class Searcher(SearcherBase):
 
         sorted_results = sorted(results, key = lambda k: k['score'], reverse = True)
 
-        download_preference = self.conf('preferred_method', section = 'searcher')
-        if download_preference != 'both':
-            sorted_results = sorted(sorted_results, key = lambda k: k['protocol'][:3], reverse = (download_preference == 'torrent'))
-
         return sorted_results
 
     def getSearchProtocols(self):
@@ -168,8 +164,8 @@ class Searcher(SearcherBase):
             check_movie = fireEvent('scanner.name_year', check_name, single = True)
 
             try:
-                check_words = removeEmpty(re.split('\W+', check_movie.get('name', '')))
-                movie_words = removeEmpty(re.split('\W+', simplifyString(movie_name)))
+                check_words = removeEmpty(re.split(r'\W+', check_movie.get('name', '')))
+                movie_words = removeEmpty(re.split(r'\W+', simplifyString(movie_name)))
 
                 if len(check_words) > 0 and len(movie_words) > 0 and len(list(set(check_words) - set(movie_words))) == 0:
                     return True
@@ -199,10 +195,10 @@ class Searcher(SearcherBase):
 
     def correctWords(self, rel_name, media):
         media_title = fireEvent('searcher.get_search_title', media, single = True)
-        media_words = re.split('\W+', simplifyString(media_title))
+        media_words = re.split(r'\W+', simplifyString(media_title))
 
         rel_name = simplifyString(rel_name)
-        rel_words = re.split('\W+', rel_name)
+        rel_words = re.split(r'\W+', rel_name)
 
         required_words, contains_required = self.containsWords(rel_name, rel_words, 'required', media)
         if len(required_words) > 0 and not contains_required:

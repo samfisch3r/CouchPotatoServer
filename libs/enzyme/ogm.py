@@ -25,8 +25,8 @@ import re
 import stat
 import os
 import logging
-from exceptions import ParseError
-import core
+from .exceptions import ParseError
+from . import core
 
 # get logging object
 log = logging.getLogger(__name__)
@@ -291,7 +291,7 @@ class Ogm(core.AVContainer):
     def _extractHeaderString(self, header):
         len = struct.unpack('<I', header[:4])[0]
         try:
-            return (len + 4, unicode(header[4:4 + len], 'utf-8'))
+            return (len + 4, header[4:4 + len].decode('utf-8'))
         except (KeyError, IndexError, UnicodeDecodeError):
             return (len + 4, None)
 

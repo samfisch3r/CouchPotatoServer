@@ -13,16 +13,7 @@ config = [{
             'name': 'searcher',
             'label': 'Basics',
             'description': 'General search options',
-            'options': [
-                {
-                    'name': 'preferred_method',
-                    'label': 'First search',
-                    'description': 'Which of the methods do you prefer',
-                    'default': 'both',
-                    'type': 'dropdown',
-                    'values': [('usenet & torrents', 'both'), ('usenet', 'nzb'), ('torrents', 'torrent')],
-                },
-            ],
+            'options': [],
         }, {
             'tab': 'searcher',
             'subtab': 'category',
@@ -69,26 +60,6 @@ config = [{
                     'default': 1500,
                     'type': 'int',
                     'unit': 'days'
-                },
-            ],
-        },
-    ],
-}, {
-    'name': 'torrent',
-    'groups': [
-        {
-            'tab': 'searcher',
-            'name': 'searcher',
-            'wizard': True,
-            'options': [
-                {
-                    'name': 'minimum_seeders',
-                    'advanced': True,
-                    'label': 'Minimum seeders',
-                    'description': 'Ignore torrents with seeders below this number',
-                    'default': 1,
-                    'type': 'int',
-                    'unit': 'seeders'
                 },
             ],
         },

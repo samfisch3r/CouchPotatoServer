@@ -41,7 +41,7 @@ class Dashboard(Plugin):
         # Add limit
         limit = 12
         if limit_offset:
-            splt = splitString(limit_offset) if isinstance(limit_offset, (str, unicode)) else limit_offset
+            splt = splitString(limit_offset) if isinstance(limit_offset, str) else limit_offset
             limit = tryInt(splt[0])
 
         # Get all active medias
@@ -97,7 +97,7 @@ class Dashboard(Plugin):
                             media['releases'] = fireEvent('release.for_media', media['_id'], single = True)
 
                             for release in media.get('releases', []):
-                                if release.get('status') in ['snatched', 'available', 'seeding', 'downloaded']:
+                                if release.get('status') in ['snatched', 'available', 'downloaded']:
                                     add = False
                                     break
 

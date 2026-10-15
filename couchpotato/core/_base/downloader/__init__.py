@@ -10,7 +10,7 @@ config = [{
     'groups': [
         {
             'label': 'Downloaders',
-            'description': 'You can select different downloaders for each type (usenet / torrent)',
+            'description': 'Select which Usenet downloader CouchPotato should use.',
             'type': 'list',
             'name': 'download_providers',
             'tab': 'downloaders',

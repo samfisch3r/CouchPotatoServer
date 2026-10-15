@@ -242,7 +242,9 @@ def canonical_form(string):
 def compute_canonical_form(property_name, value):
     """Return the canonical form of a property given its type if it is a valid
     one, None otherwise."""
-    if isinstance(value, basestring):
+    if isinstance(value, (str, bytes)):
+        if isinstance(value, bytes):
+            value = value.decode('utf-8', 'replace')
         for canonical_form, rexps in properties_rexps[property_name].items():
             for rexp in rexps:
                 if rexp.match(value):

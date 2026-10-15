@@ -15,7 +15,7 @@ class MediaIndex(MultiTreeBasedIndex):
         super(MediaIndex, self).__init__(*args, **kwargs)
 
     def make_key(self, key):
-        return md5(key).hexdigest()
+        return md5(key.encode('utf-8') if isinstance(key, str) else key).hexdigest()
 
     def make_key_value(self, data):
         if data.get('_t') == 'media' and (data.get('identifier') or data.get('identifiers')):
@@ -26,7 +26,8 @@ class MediaIndex(MultiTreeBasedIndex):
 
             ids = []
             for x in identifiers:
-                ids.append(md5('%s-%s' % (x, identifiers[x])).hexdigest())
+                identifier = '%s-%s' % (x, identifiers[x])
+                ids.append(md5(identifier.encode('utf-8')).hexdigest())
 
             return ids, None
 
@@ -39,11 +40,12 @@ class MediaStatusIndex(TreeBasedIndex):
         super(MediaStatusIndex, self).__init__(*args, **kwargs)
 
     def make_key(self, key):
-        return md5(key).hexdigest()
+        return md5(key.encode('utf-8') if isinstance(key, str) else key).hexdigest()
 
     def make_key_value(self, data):
         if data.get('_t') == 'media' and data.get('status'):
-            return md5(data.get('status')).hexdigest(), None
+            status = data.get('status')
+            return md5(status.encode('utf-8') if isinstance(status, str) else status).hexdigest(), None
 
 
 class MediaTypeIndex(TreeBasedIndex):
@@ -54,18 +56,22 @@ class MediaTypeIndex(TreeBasedIndex):
         super(MediaTypeIndex, self).__init__(*args, **kwargs)
 
     def make_key(self, key):
-        return md5(key).hexdigest()
+        return md5(key.encode('utf-8') if isinstance(key, str) else key).hexdigest()
 
     def make_key_value(self, data):
         if data.get('_t') == 'media' and data.get('type'):
-            return md5(data.get('type')).hexdigest(), None
+            media_type = data.get('type')
+            return md5(media_type.encode('utf-8') if isinstance(media_type, str) else media_type).hexdigest(), None
 
 
 class TitleSearchIndex(MultiTreeBasedIndex):
     _version = 1
 
     custom_header = """from CodernityDB.tree_index import MultiTreeBasedIndex
-from itertools import izip
+try:
+    from itertools import izip
+except ImportError:
+    izip = zip
 from couchpotato.core.helpers.encoding import simplifyString"""
 
     def __init__(self, *args, **kwargs):
@@ -196,4 +202,4 @@ class MediaTagIndex(MultiTreeBasedIndex):
             return list(tags), None
 
     def make_key(self, key):
-        return md5(key).hexdigest()
+        return md5(key.encode('utf-8') if isinstance(key, str) else key).hexdigest()

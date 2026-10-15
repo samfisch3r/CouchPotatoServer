@@ -70,7 +70,7 @@ Page.Home = new Class({
 				})
 			),
 			'filter': {
-				'release_status': 'snatched,missing,available,downloaded,done,seeding',
+				'release_status': 'snatched,missing,available,downloaded,done',
 				'with_tags': 'recent'
 			},
 			'limit': null,

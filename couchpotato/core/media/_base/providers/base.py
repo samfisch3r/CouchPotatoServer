@@ -1,4 +1,4 @@
-from urlparse import urlparse
+from urllib.parse import urlparse
 import json
 import re
 from requests import HTTPError
@@ -58,7 +58,7 @@ class Provider(Plugin):
         now = time.time()
         host = urlparse(test_url).hostname
 
-        if self.last_available_check.get(host) < now - 900:
+        if (self.last_available_check.get(host) or 0) < now - 900:
             self.last_available_check[host] = now
 
             try:
@@ -115,7 +115,7 @@ class Provider(Plugin):
 
 class YarrProvider(Provider):
 
-    protocol = None  # nzb, torrent, torrent_magnet
+    protocol = None  # nzb
 
     cat_ids = {}
     cat_backup_id = None
@@ -354,8 +354,6 @@ class ResultList(list):
             'type': self.provider.type,
             'provider': self.provider.getName(),
             'download': self.provider.loginDownload if self.provider.urls.get('login') else self.provider.download,
-            'seed_ratio': Env.setting('seed_ratio', section = self.provider.getName().lower(), default = ''),
-            'seed_time': Env.setting('seed_time', section = self.provider.getName().lower(), default = ''),
             'url': '',
             'name': '',
             'age': 0,

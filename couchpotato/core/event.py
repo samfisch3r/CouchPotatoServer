@@ -28,7 +28,7 @@ def addEvent(name, handler, priority = 100):
         h = None
         try:
             # Open handler
-            has_parent = hasattr(handler, 'im_self')
+            has_parent = hasattr(handler, '__self__')
             parent = None
             if has_parent:
                 parent = handler.__self__
@@ -102,7 +102,7 @@ def fireEvent(name, *args, **kwargs):
             # Fire
             result = e(*args, **kwargs)
 
-        result_keys = result.keys()
+        result_keys = list(result)
         result_keys.sort(key = natsortKey)
 
         if options['single'] and not options['merge']:
@@ -168,7 +168,7 @@ def fireEvent(name, *args, **kwargs):
 def fireEventAsync(*args, **kwargs):
     try:
         t = threading.Thread(target = fireEvent, args = args, kwargs = kwargs)
-        t.setDaemon(True)
+        t.daemon = True
         t.start()
         return True
     except Exception as e:

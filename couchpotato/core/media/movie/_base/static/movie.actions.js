@@ -258,7 +258,7 @@ MA.Release = new Class({
 							status_el.set('class', 'status ' + new_status);
 							status_el.set('text', new_status);
 
-						if(!q && (new_status == 'snatched' || new_status == 'seeding' || new_status == 'done'))
+						if(!q && (new_status == 'snatched' || new_status == 'done'))
 							q = self.addQuality(release.quality_id);
 
 						if(q && !q.hasClass(new_status)) {
@@ -797,7 +797,7 @@ MA.Readd = new Class({
 
 		if(self.movie.data.releases && !movie_done)
 			snatched = self.movie.data.releases.filter(function(release){
-				return release.status && (release.status == 'snatched' || release.status == 'seeding' || release.status == 'downloaded' || release.status == 'done');
+				return release.status && (release.status == 'snatched' || release.status == 'downloaded' || release.status == 'done');
 			}).length;
 
 		if(movie_done || snatched && snatched > 0)

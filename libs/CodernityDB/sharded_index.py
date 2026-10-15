@@ -60,7 +60,7 @@ class ShardedIndex(Index):
 #        ind_class = globals()[self.ind_class]
         ind_class = self.ind_class
         i = 0
-        for sh_name in [self.name + str(x) for x in xrange(self.sh_nums)]:
+        for sh_name in [self.name + str(x) for x in range(self.sh_nums)]:
             # dict is better than list in that case
             self.shards[i] = ind_class(self.db_path, sh_name, *args, **kwargs)
             self.shards_r['%02x' % i] = self.shards[i]
@@ -82,31 +82,31 @@ class ShardedIndex(Index):
         return getattr(self.shards[self.last_used], name)
 
     def open_index(self):
-        for curr in self.shards.itervalues():
+        for curr in self.shards.values():
             curr.open_index()
 
     def create_index(self):
-        for curr in self.shards.itervalues():
+        for curr in self.shards.values():
             curr.create_index()
 
     def destroy(self):
-        for curr in self.shards.itervalues():
+        for curr in self.shards.values():
             curr.destroy()
 
     def compact(self):
-        for curr in self.shards.itervalues():
+        for curr in self.shards.values():
             curr.compact()
 
     def reindex(self):
-        for curr in self.shards.itervalues():
+        for curr in self.shards.values():
             curr.reindex()
 
     def all(self, *args, **kwargs):
-        for curr in self.shards.itervalues():
+        for curr in self.shards.values():
             for now in curr.all(*args, **kwargs):
                 yield now
 
     def get_many(self, *args, **kwargs):
-        for curr in self.shards.itervalues():
+        for curr in self.shards.values():
             for now in curr.get_many(*args, **kwargs):
                 yield now

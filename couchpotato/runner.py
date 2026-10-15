@@ -20,9 +20,9 @@ from couchpotato.core.event import fireEventAsync, fireEvent
 from couchpotato.core.helpers.encoding import sp
 from couchpotato.core.helpers.variable import getDataDir, tryInt, getFreeSpace
 import requests
-from requests.packages.urllib3 import disable_warnings
 from tornado.httpserver import HTTPServer
 from tornado.web import Application, StaticFileHandler, RedirectHandler
+from urllib3 import disable_warnings
 from couchpotato.core.softchroot import SoftChrootInitError
 try: from tornado.netutil import bind_unix_socket
 except: pass
@@ -114,7 +114,7 @@ def runCouchPotato(options, base_path, args, data_dir = None, log_dir = None, En
             # Only consider files being a direct child of the backup_path
             if root == backup_path:
                 for backup_file in sorted(files):
-                    ints = re.findall('\d+', backup_file)
+                    ints = re.findall(r'\d+', backup_file)
 
                     # Delete non zip files
                     if len(ints) != 1:
@@ -181,11 +181,8 @@ def runCouchPotato(options, base_path, args, data_dir = None, log_dir = None, En
     Env.set('dev', development)
 
     # Disable logging for some modules
-    for logger_name in ['enzyme', 'guessit', 'subliminal', 'apscheduler', 'tornado', 'requests']:
+    for logger_name in ['enzyme', 'guessit', 'apscheduler', 'tornado', 'requests']:
         logging.getLogger(logger_name).setLevel(logging.ERROR)
-
-    for logger_name in ['gntp']:
-        logging.getLogger(logger_name).setLevel(logging.WARNING)
 
     # Disable SSL warning
     disable_warnings()

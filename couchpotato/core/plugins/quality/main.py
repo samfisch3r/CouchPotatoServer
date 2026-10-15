@@ -117,11 +117,13 @@ class QualityPlugin(Plugin):
         try:
             quality = db.get('quality', identifier, with_doc = True)['doc']
         except RecordNotFound:
-            log.error("Unable to find '%s' in the quality DB", indentifier)
+            log.error("Unable to find '%s' in the quality DB", identifier)
             quality = None
 
         if quality:
-            quality_dict = mergeDicts(self.getQuality(quality['identifier']), quality)
+            quality_dict = mergeDicts(self.getQuality(quality['identifier']) or {}, quality)
+        elif self.getQuality(identifier):
+            quality_dict = self.getQuality(identifier).copy()
 
         return quality_dict
 
@@ -235,7 +237,7 @@ class QualityPlugin(Plugin):
             files.extend(extra.get('titles'))
 
         for cur_file in files:
-            words = re.split('\W+', cur_file.lower())
+            words = re.split(r'\W+', cur_file.lower())
             name_year = fireEvent('scanner.name_year', cur_file, file_name = cur_file, single = True)
             threed_words = words
             if name_year and name_year.get('name'):
@@ -305,7 +307,7 @@ class QualityPlugin(Plugin):
         # Check alt and tags
         for tag_type in ['identifier', 'alternative', 'tags', 'label']:
             qualities = quality.get(tag_type, [])
-            qualities = [qualities] if isinstance(qualities, (str, unicode)) else qualities
+            qualities = [qualities] if isinstance(qualities, str) else qualities
 
             for alt in qualities:
                 if isinstance(alt, tuple):
@@ -313,7 +315,7 @@ class QualityPlugin(Plugin):
                         log.debug('Found %s via %s %s in %s', (quality['identifier'], tag_type, quality.get(tag_type), cur_file))
                         score += points.get(tag_type)
 
-                if isinstance(alt, (str, unicode)) and ss(alt.lower()) in words and ss(alt.lower()) not in scored_on:
+                if isinstance(alt, str) and ss(alt.lower()) in words and ss(alt.lower()) not in scored_on:
                     log.debug('Found %s via %s %s in %s', (quality['identifier'], tag_type, quality.get(tag_type), cur_file))
                     score += points.get(tag_type)
 
@@ -493,8 +495,8 @@ class QualityPlugin(Plugin):
             '/volume1/Public/3D/Moviename/Moviename (2009).3D.SBS.ts': {'size': 7500, 'quality': '1080p', 'is_3d': True},
             '/volume1/Public/Moviename/Moviename (2009).ts': {'size': 7500, 'quality': '1080p'},
             '/movies/BluRay HDDVD H.264 MKV 720p EngSub/QuiQui le fou (criterion collection #123, 1915)/QuiQui le fou (1915) 720p x264 BluRay.mkv': {'size': 5500, 'quality': '720p'},
-            'C:\\movies\QuiQui le fou (collection #123, 1915)\QuiQui le fou (1915) 720p x264 BluRay.mkv': {'size': 5500, 'quality': '720p'},
-            'C:\\movies\QuiQui le fou (collection #123, 1915)\QuiQui le fou (1915) half-sbs 720p x264 BluRay.mkv': {'size': 5500, 'quality': '720p', 'is_3d': True},
+            r'C:\movies\QuiQui le fou (collection #123, 1915)\QuiQui le fou (1915) 720p x264 BluRay.mkv': {'size': 5500, 'quality': '720p'},
+            r'C:\movies\QuiQui le fou (collection #123, 1915)\QuiQui le fou (1915) half-sbs 720p x264 BluRay.mkv': {'size': 5500, 'quality': '720p', 'is_3d': True},
             'Moviename 2014 720p HDCAM XviD DualAudio': {'size': 4000, 'quality': 'cam'},
             'Moviename (2014) - 720p CAM x264': {'size': 2250, 'quality': 'cam'},
             'Movie Name (2014).mp4': {'size': 750, 'quality': 'brrip'},
@@ -536,5 +538,3 @@ class QualityPlugin(Plugin):
             return True
         else:
             log.error('Quality test failed: %s out of %s succeeded', (correct, len(tests)))
-
-

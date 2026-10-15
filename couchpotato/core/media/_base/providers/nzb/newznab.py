@@ -1,4 +1,4 @@
-from urlparse import urlparse
+from urllib.parse import urlparse
 import time
 import traceback
 import re
@@ -101,7 +101,7 @@ class Base(NZBProvider, RSS):
                     description = self.getTextElement(nzb_details, 'description')
 
                     # Extract a password from the description
-                    password = re.search('(?:' + self.passwords_regex + ')(?: *)(?:\:|\=)(?: *)(.*?)\<br\>|\n|$', description, flags = re.I).group(1)
+                    password = re.search(r'(?:' + self.passwords_regex + r')(?: *)(?:\:|\=)(?: *)(.*?)\<br\>|\n|$', description, flags = re.I).group(1)
                     if password:
                         name += ' {{%s}}' % password.strip()
                 except:
@@ -133,6 +133,9 @@ class Base(NZBProvider, RSS):
         list = []
         for nr in range(len(hosts)):
 
+            try: use = uses[nr]
+            except: use = '1'
+
             try: key = api_keys[nr]
             except: key = ''
 
@@ -149,7 +152,7 @@ class Base(NZBProvider, RSS):
             except: custom_category = ''
 
             list.append({
-                'use': uses[nr],
+                'use': use,
                 'host': host,
                 'api_key': key,
                 'extra_score': score,
@@ -186,7 +189,7 @@ class Base(NZBProvider, RSS):
                     return True
             return False
 
-        return NZBProvider.isEnabled(self) and host['host'] and host['api_key'] and int(host['use'])
+        return NZBProvider.isEnabled(self) and host.get('host') and host.get('api_key') and bool(tryInt(host.get('use', 1)))
 
     def getApiExt(self, host):
         return '&apikey=%s' % host['api_key']
@@ -206,7 +209,7 @@ class Base(NZBProvider, RSS):
         except HTTPError as e:
             sc = e.response.status_code
             if sc in [503, 429]:
-                response = e.read().lower()
+                response = (e.response.text if hasattr(e, 'response') and e.response is not None else '').lower()
                 if sc == 429 or 'maximum api' in response or 'download limit' in response:
                     if not self.limits_reached.get(host):
                         log.error('Limit reached / to many requests for newznab provider: %s', host)

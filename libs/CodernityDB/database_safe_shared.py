@@ -34,9 +34,11 @@ class th_safe_gen:
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         with self.lock:
-            return self.__gen.next()
+            return next(self.__gen)
+
+    next = __next__
 
     @staticmethod
     def wrapper(method, index_name, meth_name, l=None):
@@ -94,14 +96,14 @@ class SafeDatabase(Database):
     def initialize(self, *args, **kwargs):
         with self.close_open_lock:
             res = super(SafeDatabase, self).initialize(*args, **kwargs)
-            for name in self.indexes_names.iterkeys():
+            for name in self.indexes_names:
                 self.indexes_locks[name] = cdb_environment['rlock_obj']()
             return res
 
     def open(self, *args, **kwargs):
         with self.close_open_lock:
             res = super(SafeDatabase, self).open(*args, **kwargs)
-            for name in self.indexes_names.iterkeys():
+            for name in self.indexes_names:
                 self.indexes_locks[name] = cdb_environment['rlock_obj']()
                 self.__patch_index(name)
             return res
@@ -109,7 +111,7 @@ class SafeDatabase(Database):
     def create(self, *args, **kwargs):
         with self.close_open_lock:
             res = super(SafeDatabase, self).create(*args, **kwargs)
-            for name in self.indexes_names.iterkeys():
+            for name in self.indexes_names:
                 self.indexes_locks[name] = cdb_environment['rlock_obj']()
                 self.__patch_index(name)
             return res
@@ -156,7 +158,7 @@ class SafeDatabase(Database):
             self.main_lock.release()
 
     def reindex_index(self, index, *args, **kwargs):
-        if isinstance(index, basestring):
+        if isinstance(index, (str, bytes)):
             if not index in self.indexes_names:
                 raise PreconditionsException("No index named %s" % index)
             index = self.indexes_names[index]

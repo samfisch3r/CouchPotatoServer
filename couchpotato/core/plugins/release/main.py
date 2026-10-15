@@ -8,7 +8,7 @@ from couchpotato import md5, get_db
 from couchpotato.api import addApiView
 from couchpotato.core.event import fireEvent, addEvent
 from couchpotato.core.helpers.encoding import toUnicode, sp
-from couchpotato.core.helpers.variable import getTitle, tryInt
+from couchpotato.core.helpers.variable import getTitle
 from couchpotato.core.logger import CPLog
 from couchpotato.core.plugins.base import Plugin
 from .index import ReleaseIndex, ReleaseStatusIndex, ReleaseIDIndex, ReleaseDownloadIndex
@@ -278,8 +278,7 @@ class Release(Plugin):
             # Get matching provider
             provider = fireEvent('provider.belongs_to', item['url'], provider = item.get('provider'), single = True)
 
-            if item.get('protocol') != 'torrent_magnet':
-                item['download'] = provider.loginDownload if provider.urls.get('login') else provider.download
+            item['download'] = provider.loginDownload if provider.urls.get('login') else provider.download
 
             success = self.download(data = item, media = movie, manual = True)
 
@@ -304,9 +303,9 @@ class Release(Plugin):
             log.info('Tried to download, but none of the "%s" downloaders are enabled or gave an error', data.get('protocol'))
             return False
 
-        # Download NZB or torrent file
+        # Download NZB file
         filedata = None
-        if data.get('download') and (ismethod(data.get('download')) or isfunction(data.get('download'))):
+        if data.get('download') and callable(data.get('download')):
             try:
                 filedata = data.get('download')(url = data.get('url'), nzb_id = data.get('id'))
             except:
@@ -318,7 +317,7 @@ class Release(Plugin):
             elif not filedata:
                 return False
 
-        # Send NZB or torrent file to downloader
+        # Send NZB file to downloader
         download_result = fireEvent('download', data = data, media = media, manual = manual, filedata = filedata, single = True)
         if not download_result:
             log.info('Tried to download, but the "%s" downloader gave an error', data.get('protocol'))
@@ -380,7 +379,7 @@ class Release(Plugin):
         wait_for = False
         let_through = False
         filtered_results = []
-        minimum_seeders = tryInt(Env.setting('minimum_seeders', section = 'torrent', default = 1))
+
 
         # Filter out ignored and other releases we don't want
         for rel in results:
@@ -395,10 +394,6 @@ class Release(Plugin):
 
             if rel['size'] <= 50:
                 log.info('Ignored, size "%sMB" too low: %s', (rel['size'], rel['name']))
-                continue
-
-            if 'seeders' in rel and rel.get('seeders') < minimum_seeders:
-                log.info('Ignored, not enough seeders, has %s needs %s: %s', (rel.get('seeders'), minimum_seeders, rel['name']))
                 continue
 
             # If a single release comes through the "wait for", let through all
@@ -469,10 +464,10 @@ class Release(Plugin):
                 # Update info, but filter out functions
                 for info in rel:
                     try:
-                        if not isinstance(rel[info], (str, unicode, int, long, float)):
+                        if not isinstance(rel[info], (str, int, float)):
                             continue
 
-                        rls['info'][info] = toUnicode(rel[info]) if isinstance(rel[info], (str, unicode)) else rel[info]
+                        rls['info'][info] = toUnicode(rel[info]) if isinstance(rel[info], str) else rel[info]
                     except:
                         log.debug('Couldn\'t add %s to ReleaseInfo: %s', (info, traceback.format_exc()))
 
@@ -561,8 +556,4 @@ class Release(Plugin):
         releases = sorted(releases, key = lambda k: k.get('info', {}).get('score', 0), reverse = True)
 
         # Sort based on preferred search method
-        download_preference = self.conf('preferred_method', section = 'searcher')
-        if download_preference != 'both':
-            releases = sorted(releases, key = lambda k: k.get('info', {}).get('protocol', '')[:3], reverse = (download_preference == 'torrent'))
-
         return releases or []

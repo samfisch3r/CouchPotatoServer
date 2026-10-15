@@ -139,7 +139,8 @@ class ProfilePlugin(Plugin):
 
     def default(self):
         db = get_db()
-        return list(db.all('profile', limit = 1, with_doc = True))[0]['doc']
+        profiles = list(db.all('profile', limit = 1, with_doc = True))
+        return profiles[0]['doc'] if profiles else {}
 
     def saveOrder(self, **kwargs):
 

@@ -1,0 +1,26 @@
+name: Python tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Verify dependency consistency
+        run: python -m pip check
+      - name: Check Python syntax warnings
+        run: python -W error::SyntaxWarning -m compileall -q couchpotato
+      - name: Run tests
+        run: python -c "import sys; sys.path.append('libs'); import pytest; raise SystemExit(pytest.main(['couchpotato']))"

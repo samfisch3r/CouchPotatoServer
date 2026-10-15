@@ -39,7 +39,7 @@ class Suggestion(Plugin):
         else:
 
             if not movies or len(movies) == 0:
-                active_movies = fireEvent('media.with_status', ['active', 'done'], types = 'movie', single = True)
+                active_movies = fireEvent('media.with_status', ['active', 'done'], types = 'movie', single = True) or []
                 movies = [getIdentifier(x) for x in active_movies]
 
             if not ignored or len(ignored) == 0:
@@ -131,7 +131,7 @@ class Suggestion(Plugin):
 
         # Get new results and add them
         if len(new_suggestions) - 1 < limit:
-            active_movies = fireEvent('media.with_status', ['active', 'done'], single = True)
+            active_movies = fireEvent('media.with_status', ['active', 'done'], single = True) or []
             movies = [getIdentifier(x) for x in active_movies]
             movies.extend(seen)
 

@@ -9,7 +9,6 @@ from couchpotato.core.helpers.encoding import toUnicode
 from couchpotato.core.helpers.variable import splitString, getTitle, getImdb, getIdentifier
 from couchpotato.core.logger import CPLog
 from couchpotato.core.media.movie import MovieTypeBase
-import six
 
 
 log = CPLog(__name__)
@@ -90,7 +89,7 @@ class MovieBase(MovieTypeBase):
         # Default profile and category
         default_profile = {}
         if (not params.get('profile_id') and status != 'done') or params.get('ignore_previous', False):
-            default_profile = fireEvent('profile.default', single = True)
+            default_profile = fireEvent('profile.default', single = True) or {}
         cat_id = params.get('category_id')
 
         try:
@@ -146,8 +145,8 @@ class MovieBase(MovieTypeBase):
             elif force_readd:
 
                 # Clean snatched history
-                for release in fireEvent('release.for_media', m['_id'], single = True):
-                    if release.get('status') in ['downloaded', 'snatched', 'seeding', 'done']:
+                for release in (fireEvent('release.for_media', m['_id'], single = True) or []):
+                    if release.get('status') in ['downloaded', 'snatched', 'done']:
                         if params.get('ignore_previous', False):
                             fireEvent('release.update_status', release['_id'], status = 'ignored')
                         else:
@@ -172,8 +171,8 @@ class MovieBase(MovieTypeBase):
                 fireEventAsync('movie.update', m['_id'], default_title = params.get('title'), on_complete = onComplete)
 
             # Remove releases
-            for rel in fireEvent('release.for_media', m['_id'], single = True):
-                if rel['status'] is 'available':
+            for rel in (fireEvent('release.for_media', m['_id'], single = True) or []):
+                if rel['status'] == 'available':
                     db.delete(rel)
 
             movie_dict = fireEvent('media.get', m['_id'], single = True)
@@ -226,8 +225,8 @@ class MovieBase(MovieTypeBase):
                         m['category_id'] = cat_id if len(cat_id) > 0 else m['category_id']
 
                     # Remove releases
-                    for rel in fireEvent('release.for_media', m['_id'], single = True):
-                        if rel['status'] is 'available':
+                    for rel in (fireEvent('release.for_media', m['_id'], single = True) or []):
+                        if rel['status'] == 'available':
                             db.delete(rel)
 
                     # Default title
@@ -244,7 +243,7 @@ class MovieBase(MovieTypeBase):
                     fireEventAsync('movie.searcher.single', movie_dict, on_complete = self.createNotifyFront(media_id))
 
                 except:
-                    print traceback.format_exc()
+                    print(traceback.format_exc())
                     log.error('Can\'t edit non-existing media')
 
             return {
@@ -309,7 +308,9 @@ class MovieBase(MovieTypeBase):
 
             self.getPoster(media, image_urls)
 
-            db.update(media)
+            res = db.update(media)
+            if isinstance(res, dict) and '_rev' in res:
+                media['_rev'] = res['_rev']
         except:
             log.error('Failed update media: %s', traceback.format_exc())
 
@@ -331,6 +332,8 @@ class MovieBase(MovieTypeBase):
 
             if not media.get('info'):
                 media = self.update(media_id)
+                if not media:
+                    return {}
                 dates = media.get('info', {}).get('release_date')
             else:
                 dates = media.get('info').get('release_date')
@@ -338,7 +341,9 @@ class MovieBase(MovieTypeBase):
             if dates and (dates.get('expires', 0) < time.time() or dates.get('expires', 0) > time.time() + (604800 * 4)) or not dates:
                 dates = fireEvent('movie.info.release_date', identifier = getIdentifier(media), merge = True)
                 media['info'].update({'release_date': dates})
-                db.update(media)
+                res = db.update(media)
+                if isinstance(res, dict) and '_rev' in res:
+                    media['_rev'] = res['_rev']
 
             return dates
         except:

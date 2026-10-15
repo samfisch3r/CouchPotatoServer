@@ -20,9 +20,9 @@
 # You should have received a copy of the GNU General Public License
 # along with enzyme.  If not, see <http://www.gnu.org/licenses/>.
 from datetime import datetime
-from exceptions import ParseError
+from .exceptions import ParseError
 from struct import unpack
-import core
+from . import core
 import logging
 import re
 
@@ -163,7 +163,7 @@ def matroska_bps_to_bitrate(bps):
     """
     Tries to convert a free-form bps string into a bitrate (bits per second).
     """
-    m = re.search('([\d.]+)\s*(\D.*)', bps)
+    m = re.search(r'([\d.]+)\s*(\D.*)', bps)
     if m:
         bps, suffix = m.groups()
         if 'kbit' in suffix:
@@ -332,11 +332,11 @@ class EbmlEntity:
 
 
     def get_utf8(self):
-        return unicode(self.entity_data, 'utf-8', 'replace')
+        return self.entity_data.decode('utf-8', 'replace')
 
 
     def get_str(self):
-        return unicode(self.entity_data, 'ascii', 'replace')
+        return self.entity_data.decode('ascii', 'replace')
 
 
     def get_id(self):

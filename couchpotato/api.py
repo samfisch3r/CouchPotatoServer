@@ -1,14 +1,15 @@
 from functools import wraps
 from threading import Thread
+import asyncio
 import json
 import threading
 import traceback
-import urllib
+import urllib.parse
 
 from couchpotato.core.helpers.request import getParams
 from couchpotato.core.logger import CPLog
 from tornado.ioloop import IOLoop
-from tornado.web import RequestHandler, asynchronous
+from tornado.web import RequestHandler
 
 
 log = CPLog(__name__)
@@ -43,15 +44,14 @@ def run_handler(route, kwargs, callback = None):
 # NonBlock API handler
 class NonBlockHandler(RequestHandler):
 
-    stopper = None
-
-    @asynchronous
-    def get(self, route, *args, **kwargs):
+    async def get(self, route, *args, **kwargs):
         route = route.strip('/')
         start, stop = api_nonblock[route]
         self.stopper = stop
+        self.response_future = asyncio.get_running_loop().create_future()
 
         start(self.sendData, last_id = self.get_argument('last_id', None))
+        await self.response_future
 
     def sendData(self, response):
         if not self.request.connection.stream.closed():
@@ -62,7 +62,15 @@ class NonBlockHandler(RequestHandler):
                 try: self.finish({'success': False, 'error': 'Failed returning results'})
                 except: pass
 
+        if not self.response_future.done():
+            self.response_future.set_result(None)
+
         self.removeStopper()
+
+    def on_connection_close(self):
+        self.removeStopper()
+        if not self.response_future.done():
+            self.response_future.set_result(None)
 
     def removeStopper(self):
         if self.stopper:
@@ -84,8 +92,7 @@ def addNonBlockApiView(route, func_tuple, docs = None, **kwargs):
 class ApiHandler(RequestHandler):
     route = None
 
-    @asynchronous
-    def get(self, route, *args, **kwargs):
+    async def get(self, route, *args, **kwargs):
         self.route = route = route.strip('/')
         if not api.get(route):
             self.write('API call doesn\'t seem to exist')
@@ -102,7 +109,7 @@ class ApiHandler(RequestHandler):
 
             kwargs = {}
             for x in self.request.arguments:
-                kwargs[x] = urllib.unquote(self.get_argument(x))
+                kwargs[x] = urllib.parse.unquote(self.get_argument(x))
 
             # Split array arguments
             kwargs = getParams(kwargs)
@@ -112,8 +119,11 @@ class ApiHandler(RequestHandler):
             try: del kwargs['t']
             except: pass
 
-            # Add async callback handler
+            self.response_loop = IOLoop.current()
+            self.response_future = asyncio.get_running_loop().create_future()
             run_handler(route, kwargs, callback = self.taskFinished)
+            result, route = await self.response_future
+            self.sendData(result, route)
 
         except:
             log.error('Failed doing api request "%s": %s', (route, traceback.format_exc()))
@@ -128,7 +138,7 @@ class ApiHandler(RequestHandler):
     post = get
 
     def taskFinished(self, result, route):
-        IOLoop.current().add_callback(self.sendData, result, route)
+        self.response_loop.add_callback(self.response_future.set_result, (result, route))
         self.unlock()
 
     def sendData(self, result, route):

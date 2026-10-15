@@ -356,7 +356,7 @@ var Movie = new Class({
 			var q = self.quality.getElement('.q_'+ release.quality+(release.is_3d ? '.is_3d' : ':not(.is_3d)')),
 				status = release.status;
 
-			if(!q && (status == 'snatched' || status == 'seeding' || status == 'done'))
+			if(!q && (status == 'snatched' || status == 'done'))
 				q = self.addQuality(release.quality, release.is_3d || false);
 
 			if (q && !q.hasClass(status)){

@@ -266,7 +266,7 @@ class MovieSearcher(SearcherBase, MovieTypeBase):
         imdb_results = kwargs.get('imdb_results', False)
         retention = Env.setting('retention', section = 'nzb')
 
-        if nzb.get('seeders') is None and 0 < retention < nzb.get('age', 0):
+        if 0 < retention < nzb.get('age', 0):
             log.info2('Wrong: Outside retention, age is %s, needs %s or lower: %s', (nzb['age'], retention, nzb['name']))
             return False
 
@@ -316,7 +316,7 @@ class MovieSearcher(SearcherBase, MovieTypeBase):
 
         for raw_title in media['info']['titles']:
             for movie_title in possibleTitles(raw_title):
-                movie_words = re.split('\W+', simplifyString(movie_title))
+                movie_words = re.split(r'\W+', simplifyString(movie_title))
 
                 if fireEvent('searcher.correct_name', nzb['name'], movie_title, single = True):
                     # if no IMDB link, at least check year range 1
@@ -346,26 +346,29 @@ class MovieSearcher(SearcherBase, MovieTypeBase):
                 return False
 
             # For movies before 1972
-            if not dates or dates.get('theater', 0) < 0 or dates.get('dvd', 0) < 0:
+            theater = dates.get('theater') if dates else None
+            dvd = dates.get('dvd') if dates else None
+
+            if not dates or (theater is not None and theater < 0) or (dvd is not None and dvd < 0):
                 return True
 
             if is_pre_release:
                 # Prerelease 1 week before theaters
-                if dates.get('theater') - 604800 < now:
+                if theater and theater - 604800 < now:
                     return True
             else:
                 # 12 weeks after theater release
-                if dates.get('theater') > 0 and dates.get('theater') + 7257600 < now:
+                if theater and theater > 0 and theater + 7257600 < now:
                     return True
 
-                if dates.get('dvd') > 0:
+                if dvd and dvd > 0:
 
                     # 4 weeks before dvd release
-                    if dates.get('dvd') - 2419200 < now:
+                    if dvd - 2419200 < now:
                         return True
 
                     # Dvd should be released
-                    if dates.get('dvd') < now:
+                    if dvd < now:
                         return True
 
 
@@ -452,7 +455,7 @@ config = [{
                     'advanced': True,
                     'default': '*',
                     'type': 'string',
-                    'description': '<strong>*</strong>: Every day, <strong>*/2</strong>: Every 2 days, <strong>1</strong>: Every first of the month. See <a href="https://apscheduler.readthedocs.org/en/latest/modules/triggers/cron.html" target="_blank">APScheduler</a> for details.',
+                    'description': '<strong>*</strong>: Every day, <strong>*/2</strong>: Every 2 days, <strong>1</strong>: Every first of the month. See <a href="https://apscheduler.readthedocs.io/en/3.x/modules/triggers/cron.html" target="_blank">APScheduler</a> for details.',
                 },
                 {
                     'name': 'cron_hour',

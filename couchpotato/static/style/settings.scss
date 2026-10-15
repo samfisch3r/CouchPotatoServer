@@ -492,7 +492,7 @@
 		.host, .automation_ids, .automation_urls { width: 200px; }
 		.api_key, .pass_key { width: 150px; }
 		.name { width: 150px; }
-		.extra_score, .seed_ratio, .seed_time { width: 70px; text-align: center; }
+		.extra_score { width: 70px; text-align: center; }
 		.custom_tag { width: 120px; text-align: center; }
 
 		.ctrlHolder {
@@ -560,35 +560,6 @@
 				&:before {
 					margin-right: 10px;
 				}
-			}
-		}
-
-		.donate {
-			float: left;
-			width: 42%;
-			text-align: center;
-			font-size: 17px;
-			padding: 0 0 0 4%;
-			margin: 20px 0 0;
-			border-left: 1px solid rgba(0,0,0,.2);
-			height: 150px;
-
-			@include media-phablet {
-				padding: 0;
-				float: none;
-				width: auto;
-				margin: 0;
-				border: none;
-			}
-
-			@include theme-dark {
-				border-color: rgba(255,255,255,.2);
-			}
-
-			iframe {
-				border: none;
-				width: 100%;
-				height: 100%;
 			}
 		}
 

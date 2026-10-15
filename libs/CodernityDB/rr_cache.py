@@ -29,8 +29,8 @@ def cache1lvl(maxsize=100):
                 result = cache1lvl[key]
             except KeyError:
                 if len(cache1lvl) == maxsize:
-                    for i in xrange(maxsize // 10 or 1):
-                        del cache1lvl[choice(cache1lvl.keys())]
+                    for i in range(maxsize // 10 or 1):
+                        del cache1lvl[choice(list(cache1lvl.keys()))]
                 cache1lvl[key] = user_function(key, *args, **kwargs)
                 result = cache1lvl[key]
 #                result = user_function(obj, key, *args, **kwargs)
@@ -66,9 +66,9 @@ def cache2lvl(maxsize=100):
 #                print wrapper.cache_size
                 if wrapper.cache_size == maxsize:
                     to_delete = maxsize // 10 or 1
-                    for i in xrange(to_delete):
-                        key1 = choice(cache.keys())
-                        key2 = choice(cache[key1].keys())
+                    for i in range(to_delete):
+                        key1 = choice(list(cache.keys()))
+                        key2 = choice(list(cache[key1].keys()))
                         del cache[key1][key2]
                         if not cache[key1]:
                             del cache[key1]

@@ -1,6 +1,6 @@
 import threading
-from urllib import quote, getproxies
-from urlparse import urlparse
+from urllib.parse import quote, urlparse
+from urllib.request import getproxies
 import os.path
 import time
 import traceback
@@ -13,8 +13,8 @@ from couchpotato.core.helpers.variable import md5, isLocalIP, scanForPassword, t
 from couchpotato.core.logger import CPLog
 from couchpotato.environment import Env
 import requests
-from requests.packages.urllib3 import Timeout
-from requests.packages.urllib3.exceptions import MaxRetryError
+from urllib3 import Timeout
+from urllib3.exceptions import MaxRetryError
 from tornado import template
 
 log = CPLog(__name__)
@@ -77,7 +77,8 @@ class Plugin(object):
 
     def renderTemplate(self, parent_file, templ, **params):
 
-        t = template.Template(open(os.path.join(os.path.dirname(parent_file), templ), 'r').read())
+        with open(os.path.join(os.path.dirname(parent_file), templ), 'r', encoding = 'utf-8', errors = 'replace') as f:
+            t = template.Template(f.read())
         return t.generate(**params)
 
     def createFile(self, path, content, binary = False):
@@ -368,9 +369,16 @@ class Plugin(object):
 
     def createFileName(self, data, filedata, media, unique_tag = False):
         name = self.createNzbName(data, media, unique_tag = unique_tag)
-        if data.get('protocol') == 'nzb' and 'DOCTYPE nzb' not in filedata and '</nzb>' not in filedata:
+        protocol = data.get('protocol') or 'nzb'
+        is_nzb = False
+        if isinstance(filedata, bytes):
+            is_nzb = b'DOCTYPE nzb' in filedata or b'</nzb>' in filedata
+        elif isinstance(filedata, str):
+            is_nzb = 'DOCTYPE nzb' in filedata or '</nzb>' in filedata
+
+        if protocol == 'nzb' and not is_nzb:
             return '%s.%s' % (name, 'rar')
-        return '%s.%s' % (name, data.get('protocol'))
+        return '%s.%s' % (name, protocol)
 
     def cpTag(self, media, unique_tag = False):
 
@@ -423,7 +431,7 @@ class Plugin(object):
         return False, None
 
     def getFileTimes(self, file_path):
-        return [os.path.getmtime(file_path), os.path.getctime(file_path) if os.name != 'posix' else 0]
+        return [os.path.getmtime(file_path), 0]
 
     def isDisabled(self):
         return not self.isEnabled()

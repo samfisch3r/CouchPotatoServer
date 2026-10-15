@@ -19,7 +19,6 @@ from couchpotato.environment import Env
 from dateutil.parser import parse
 from git.repository import LocalRepository
 import version
-from six.moves import filter
 
 
 log = CPLog(__name__)
@@ -37,8 +36,8 @@ class Updater(Plugin):
             self.updater = DesktopUpdater()
         elif os.path.isdir(os.path.join(Env.get('app_dir'), '.git')):
             git_default = 'git'
-            git_command = self.conf('git_command', default = git_default)
-            git_command = git_command if git_command != git_default and (os.path.isfile(git_command) or re.match('^[a-zA-Z0-9_/\.\-]+$', git_command)) else git_default
+            git_command = self.conf('git_command', default = git_default) or git_default
+            git_command = git_command if git_command != git_default and (os.path.isfile(git_command) or re.match(r'^[a-zA-Z0-9_/\.\-]+$', git_command)) else git_default
             self.updater = GitUpdater(git_command)
         else:
             self.updater = SourceUpdater()
@@ -206,14 +205,18 @@ class GitUpdater(BaseUpdater):
     new_repo = 'CouchPotato/CouchPotatoServer'
 
     def __init__(self, git_command):
-        self.repo = LocalRepository(Env.get('app_dir'), command = git_command)
+        app_dir = Env.get('app_dir') or '.'
+        self.repo = LocalRepository(app_dir, command = git_command)
 
         remote_name = 'origin'
-        remote = self.repo.getRemoteByName(remote_name)
-        if self.old_repo in remote.url:
-            log.info('Changing repo to new github organization: %s -> %s', (self.old_repo, self.new_repo))
-            new_url = remote.url.replace(self.old_repo, self.new_repo)
-            self.repo._executeGitCommandAssertSuccess("remote set-url %s %s" % (remote_name, new_url))
+        try:
+            remote = self.repo.getRemoteByName(remote_name)
+            if remote and remote.url and self.old_repo in remote.url:
+                log.info('Changing repo to new github organization: %s -> %s', (self.old_repo, self.new_repo))
+                new_url = remote.url.replace(self.old_repo, self.new_repo)
+                self.repo._executeGitCommandAssertSuccess("remote set-url %s %s" % (remote_name, new_url))
+        except Exception:
+            pass
 
     def doUpdate(self):
 

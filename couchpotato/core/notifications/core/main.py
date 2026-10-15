@@ -11,7 +11,7 @@ from couchpotato.core.event import addEvent, fireEvent
 from couchpotato.core.helpers.encoding import toUnicode
 from couchpotato.core.helpers.variable import tryInt, splitString
 from couchpotato.core.logger import CPLog
-from couchpotato.core.notifications.base import Notification
+from couchpotato.core.plugins.base import Plugin
 from .index import NotificationIndex, NotificationUnreadIndex
 from couchpotato.environment import Env
 from tornado.ioloop import IOLoop
@@ -20,7 +20,7 @@ from tornado.ioloop import IOLoop
 log = CPLog(__name__)
 
 
-class CoreNotifier(Notification):
+class CoreNotifier(Plugin):
 
     _database = {
         'notification': NotificationIndex,
@@ -41,6 +41,8 @@ class CoreNotifier(Notification):
 
         addEvent('notify', self.notify)
         addEvent('notify.frontend', self.frontend)
+        for listener in self.listen_to:
+            addEvent(listener, self.createNotifyHandler(listener))
 
         addApiView('notification.markread', self.markAsRead, docs = {
             'desc': 'Mark notifications as read',
@@ -75,6 +77,15 @@ class CoreNotifier(Notification):
         self.messages = []
         self.listeners = []
         self.m_lock = threading.Lock()
+
+    def createNotifyHandler(self, listener):
+        def notify(message=None, group=None, data=None):
+            return self.notify(
+                message=message,
+                data=data if data else group or {},
+                listener=listener,
+            )
+        return notify
 
     def clean(self):
         try:
@@ -112,7 +123,7 @@ class CoreNotifier(Notification):
         if limit_offset:
             splt = splitString(limit_offset)
             limit = tryInt(splt[0])
-            offset = tryInt(0 if len(splt) is 1 else splt[1])
+            offset = tryInt(0 if len(splt) == 1 else splt[1])
             results = db.all('notification', limit = limit, offset = offset, with_doc = True)
         else:
             results = db.all('notification', limit = 200, with_doc = True)
@@ -135,14 +146,15 @@ class CoreNotifier(Notification):
         messages = fireEvent('cp.messages', last_check = last_check, single = True) or []
 
         for message in messages:
-            if message.get('time') > last_check:
+            msg_time = tryInt(message.get('time', 0))
+            if msg_time > last_check:
                 message['sticky'] = True  # Always sticky core messages
 
                 message_type = 'core.message.important' if message.get('important') else 'core.message'
                 fireEvent(message_type, message = message.get('message'), data = message)
 
-            if last_check < message.get('time'):
-                last_check = message.get('time')
+            if last_check < msg_time:
+                last_check = msg_time
 
         Env.prop(prop_name, value = last_check)
 
@@ -253,7 +265,7 @@ class CoreNotifier(Notification):
 
         recent = []
         try:
-            index = map(itemgetter('message_id'), self.messages).index(last_id)
+            index = list(map(itemgetter('message_id'), self.messages)).index(last_id)
             recent = self.messages[index + 1:]
         except:
             pass

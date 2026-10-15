@@ -3,12 +3,15 @@ Description=CouchPotato application instance
 After=network.target
 
 [Service]
-ExecStart=/var/lib/CouchPotatoServer/CouchPotato.py
 Type=simple
 User=couchpotato
 Group=couchpotato
+WorkingDirectory=/var/lib/CouchPotatoServer
+ExecStart=/var/lib/CouchPotatoServer/.venv/bin/python /var/lib/CouchPotatoServer/CouchPotato.py
 Restart=always
-RestartSec=2s
+RestartSec=5s
+SyslogIdentifier=couchpotato
+TimeoutStopSec=20
 
 [Install]
 WantedBy=multi-user.target

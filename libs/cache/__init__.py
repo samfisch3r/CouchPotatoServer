@@ -7,7 +7,6 @@
     :license: BSD, see LICENSE for more details.
 """
 from cache.posixemulation import rename
-from itertools import izip
 from time import time
 import os
 import re
@@ -34,7 +33,7 @@ def _items(mappingorseq):
         ...    assert k*k == v
 
     """
-    return mappingorseq.iteritems() if hasattr(mappingorseq, 'iteritems') \
+    return mappingorseq.items() if hasattr(mappingorseq, 'items') \
         else mappingorseq
 
 
@@ -69,7 +68,7 @@ class BaseCache(object):
         :param keys: The function accepts multiple keys as positional
                      arguments.
         """
-        return map(self.get, keys)
+        return [self.get(key) for key in keys]
 
     def get_dict(self, *keys):
         """Works like :meth:`get_many` but returns a dict::
@@ -81,7 +80,7 @@ class BaseCache(object):
         :param keys: The function accepts multiple keys as positional
                      arguments.
         """
-        return dict(izip(keys, self.get_many(*keys)))
+        return dict(zip(keys, self.get_many(*keys)))
 
     def set(self, key, value, timeout = None):
         """Adds a new key/value to the cache (overwrites value, if key already
@@ -170,7 +169,7 @@ class FileSystemCache(BaseCache):
     #: used for temporary files by the FileSystemCache
     _fs_transaction_suffix = '.__wz_cache'
 
-    def __init__(self, cache_dir, threshold = 500, default_timeout = 300, mode = 0600):
+    def __init__(self, cache_dir, threshold = 500, default_timeout = 300, mode = 0o600):
         BaseCache.__init__(self, default_timeout)
         self._path = cache_dir
         self._threshold = threshold
@@ -215,6 +214,8 @@ class FileSystemCache(BaseCache):
                 pass
 
     def _get_filename(self, key):
+        if isinstance(key, str):
+            key = key.encode('utf-8')
         hash = md5(key).hexdigest()
         return os.path.join(self._path, hash)
 

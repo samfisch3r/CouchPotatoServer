@@ -14,9 +14,6 @@ var NotificationBase = new Class({
 		App.on('notification', self.notify.bind(self));
 		App.on('message', self.showMessage.bind(self));
 
-		// Add test buttons to settings page
-		App.addEvent('loadSettings', self.addTestButtons.bind(self));
-
 		// Notification bar
 		self.notifications = [];
 		App.addEvent('load', function(){
@@ -203,64 +200,6 @@ var NotificationBase = new Class({
 			requestTimeout(hide_message, 4000);
 
 	},
-
-	// Notification setting tests
-	addTestButtons: function(){
-		var self = this;
-
-		var setting_page = App.getPage('Settings');
-		setting_page.addEvent('create', function(){
-			Object.each(setting_page.tabs.notifications.groups, self.addTestButton.bind(self));
-		});
-
-	},
-
-	addTestButton: function(fieldset, plugin_name){
-		var self = this,
-			button_name = self.testButtonName(fieldset);
-
-		if(button_name.contains('Notifications')) return;
-
-		new Element('.ctrlHolder.test_button').grab(
-			new Element('a.button', {
-				'text': button_name,
-				'events': {
-					'click': function(){
-						var button = fieldset.getElement('.test_button .button');
-							button.set('text', 'Sending notification');
-
-						Api.request('notify.'+plugin_name+'.test', {
-							'onComplete': function(json){
-
-								button.set('text', button_name);
-
-								var message;
-								if(json.success){
-									message = new Element('span.success', {
-										'text': 'Notification successful'
-									}).inject(button, 'after');
-								}
-								else {
-									message = new Element('span.failed', {
-										'text': 'Notification failed. Check logs for details.'
-									}).inject(button, 'after');
-								}
-
-								requestTimeout(function(){
-									message.destroy();
-								}, 3000);
-							}
-						});
-					}
-				}
-			})
-		).inject(fieldset);
-	},
-
-	testButtonName: function(fieldset){
-		var name = fieldset.getElement('h2 .group_label').get('text');
-		return 'Test '+name;
-	}
 
 });
 

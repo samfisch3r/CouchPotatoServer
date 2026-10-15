@@ -33,7 +33,7 @@ def resolve(code):
     code is otherwise a printable string in which case it will be returned as
     the codec.
     """
-    if isinstance(code, basestring):
+    if isinstance(code, (str, bytes)):
         codec = u'Unknown'
         # Check for twocc
         if re.match(r'^0x[\da-f]{1,4}$', code, re.I):
@@ -47,13 +47,13 @@ def resolve(code):
             return hex(code), TWOCC.get(code, codec)
         elif len(code) != 4 and len([x for x in code if x not in string.printable]) == 0:
             # Code is a printable string.
-            codec = unicode(code)
+            codec = str(code)
 
         if code[:2] == 'MS' and code[2:].upper() in FOURCC:
             code = code[2:]
 
         if code.upper() in FOURCC:
-            return code.upper(), unicode(FOURCC[code.upper()])
+            return code.upper(), str(FOURCC[code.upper()])
         return None, codec
     elif isinstance(code, (int, long)):
         return hex(code), TWOCC.get(code, u'Unknown')
@@ -845,7 +845,7 @@ FOURCC = {
 }
 
 # make it fool prove
-for code, value in FOURCC.items():
+for code, value in list(FOURCC.items()):
     if not code.upper() in FOURCC:
         FOURCC[code.upper()] = value
     if code.endswith(' '):

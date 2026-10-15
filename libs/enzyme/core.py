@@ -20,9 +20,9 @@
 # along with enzyme.  If not, see <http://www.gnu.org/licenses/>.
 import re
 import logging
-import fourcc
-import language
-from strutils import str_to_unicode, unicode_to_str
+from . import fourcc
+from . import language
+from .strutils import str_to_unicode, unicode_to_str
 
 UNPRINTABLE_KEYS = ['thumbnail', 'url', 'codec_private']
 MEDIACORE = ['title', 'caption', 'comment', 'size', 'type', 'subtype', 'timestamp',
@@ -93,7 +93,7 @@ class Media(object):
             if isinstance(value, list):
                 if not value:
                     continue
-                elif isinstance(value[0], basestring):
+                elif isinstance(value[0], (str, bytes)):
                     # Just a list of strings (keywords?), so don't treat it specially.
                     value = u', '.join(value)
                 else:
@@ -104,7 +104,7 @@ class Media(object):
                 continue
             if key in UNPRINTABLE_KEYS:
                 value = '<unprintable data, size=%d>' % len(value)
-            result += u'| %10s: %s\n' % (unicode(key), unicode(value))
+            result += u'| %10s: %s\n' % (str(key), str(value))
 
         # print tags (recursively, to support nested tags).
         def print_tags(tags, suffix, show_label):
@@ -128,7 +128,7 @@ class Media(object):
                 if key not in ['tracks', 'subtitles', 'chapters']:
                     label += ' Track'
                 result += u'%s #%d\n' % (label, n + 1)
-                result += '|    ' + re.sub(r'\n(.)', r'\n|    \1', unicode(item))
+                result += '|    ' + re.sub(r'\n(.)', r'\n|    \1', str(item))
 
         # print tables
         #FIXME: WTH?
@@ -149,7 +149,7 @@ class Media(object):
         return result
 
     def __str__(self):
-        return unicode(self).encode()
+        return str(self)
 
     def __repr__(self):
         if hasattr(self, 'url'):
@@ -315,7 +315,7 @@ class Tag(object):
         self.binary = binary
 
     def __unicode__(self):
-        return unicode(self.value)
+        return str(self.value)
 
     def __str__(self):
         return str(self.value)

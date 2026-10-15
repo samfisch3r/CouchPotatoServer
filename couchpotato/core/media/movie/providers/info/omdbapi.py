@@ -76,7 +76,7 @@ class OMDBAPI(MovieProvider):
         try:
 
             try:
-                if isinstance(movie, (str, unicode)):
+                if isinstance(movie, str):
                     movie = json.loads(movie)
             except ValueError:
                 log.info('No proper json to decode')
@@ -91,7 +91,7 @@ class OMDBAPI(MovieProvider):
             tmp_movie = movie.copy()
             for key in tmp_movie:
                 tmp_movie_elem = tmp_movie.get(key)
-                if not isinstance(tmp_movie_elem, (str, unicode)) or tmp_movie_elem.lower() == 'n/a':
+                if not isinstance(tmp_movie_elem, str) or tmp_movie_elem.lower() == 'n/a':
                     del movie[key]
 
             year = tryInt(movie.get('Year', ''))
@@ -138,11 +138,11 @@ class OMDBAPI(MovieProvider):
     def runtimeToMinutes(self, runtime_str):
         runtime = 0
 
-        regex = '(\d*.?\d+).(h|hr|hrs|mins|min)+'
+        regex = r'(\d*.?\d+).(h|hr|hrs|mins|min)+'
         matches = re.findall(regex, runtime_str)
         for match in matches:
             nr, size = match
-            runtime += tryInt(nr) * (60 if 'h' is str(size)[0] else 1)
+            runtime += tryInt(nr) * (60 if 'h' == str(size)[0] else 1)
 
         return runtime
 
