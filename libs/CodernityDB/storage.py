@@ -125,7 +125,12 @@ class IU_Storage(object):
         # self.fsync()
 
     def data_from(self, data):
-        return _decode_bytes(marshal.loads(data))
+        try:
+            raw = marshal.loads(data)
+        except Exception:
+            from CodernityDB.index import py2_marshal_loads
+            raw = py2_marshal_loads(data)
+        return _decode_bytes(raw)
 
     def data_to(self, data):
         return marshal.dumps(data)
