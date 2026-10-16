@@ -268,7 +268,7 @@ class Database(object):
                 return
 
         # Python 3 migration: ensure all secondary indexes are synced from primary id store
-        if not Env.prop('py3_db_reindexed_v2', default = False):
+        if not Env.prop('py3_db_reindexed_v3', default = False):
             has_docs = False
             try:
                 for _ in db.all('id', limit = 1):
@@ -280,13 +280,13 @@ class Database(object):
             if has_docs:
                 log.info('Running one-time Python 3 database reindex to rebuild secondary indexes...')
                 try:
-                    db.reindex()
-                    log.info('One-time Python 3 database reindex completed successfully!')
-                    Env.prop('py3_db_reindexed_v2', value = True)
+                    count = db.reindex()
+                    log.info('One-time Python 3 database reindex completed successfully! (%s records indexed)', (count,))
+                    Env.prop('py3_db_reindexed_v3', value = True)
                 except Exception:
                     log.error('Failed one-time Python 3 database reindex: %s', traceback.format_exc())
             else:
-                Env.prop('py3_db_reindexed_v2', value = True)
+                Env.prop('py3_db_reindexed_v3', value = True)
         else:
             # Secondary check: if documents exist in id but media_by_type is empty, reindex
             try:

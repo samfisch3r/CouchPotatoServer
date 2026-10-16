@@ -874,7 +874,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
 
     def _single_reindex_index(self, index, data):
         status = data.get('_status')
-        if status in ('d', 'u'):
+        if status in ('d', 'u', b'd', b'u'):
             return
         doc_id = data.get('_id')
         if not doc_id:
@@ -924,7 +924,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
     def _reindex_indexes(self):
         indexes = [ind for ind in self.indexes[1:] if ind.name != 'id']
         if not indexes:
-            return
+            return 0
 
         for index in indexes:
             index.reindexing = True
@@ -932,6 +932,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
             index.create_index()
 
         all_iter = self.all('id')
+        reindexed_count = 0
         while True:
             try:
                 curr = next(all_iter)
@@ -939,7 +940,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                 break
             else:
                 status = curr.get('_status')
-                if status in ('d', 'u'):
+                if status in ('d', 'u', b'd', b'u'):
                     continue
                 doc_id = curr.get('_id')
                 if not doc_id:
@@ -949,9 +950,11 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                         self._single_insert_index(index, curr, doc_id)
                     except Exception:
                         pass
+                reindexed_count += 1
 
         for index in indexes:
             del index.reindexing
+        return reindexed_count
 
     def insert(self, data):
         """
@@ -1241,7 +1244,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         Reindex all indexes. Runs :py:meth:`._reindex_indexes` behind.
         """
         self.__not_opened()
-        self._reindex_indexes()
+        return self._reindex_indexes()
 
     def flush_indexes(self):
         """

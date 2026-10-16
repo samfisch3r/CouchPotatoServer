@@ -57,7 +57,7 @@ class _BinaryStruct:
     def unpack(self, data):
         res = self._struct.unpack(data)
         return tuple(
-            x.decode('ascii') if (isinstance(x, bytes) and len(x) == 1 and x in b'odu') else x
+            x.decode('ascii', 'replace') if (isinstance(x, bytes) and len(x) == 1) else x
             for x in res
         )
 
