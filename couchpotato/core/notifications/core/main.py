@@ -3,7 +3,7 @@ import threading
 import time
 import traceback
 import uuid
-from CodernityDB.database import RecordDeleted
+from CodernityDB.database import RecordDeleted, RecordNotFound
 
 from couchpotato import get_db
 from couchpotato.api import addApiView, addNonBlockApiView
