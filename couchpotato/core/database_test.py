@@ -113,21 +113,25 @@ class DatabasePython3Test(unittest.TestCase):
                     "# inserted automatically\n"
                     "from itertools import izip\n"
                     "import cPickle\n"
+                    "from hashlib import md5\n"
                     "from CodernityDB.tree_index import TreeBasedIndex\n"
                     "class CustomTestIndex(TreeBasedIndex):\n"
                     "    def __init__(self, *args, **kwargs):\n"
                     "        kwargs['key_format'] = '32s'\n"
                     "        super(CustomTestIndex, self).__init__(*args, **kwargs)\n"
                     "    def make_key(self, key):\n"
-                    "        return key.ljust(32, ' ')\n"
+                    "        return md5(key).hexdigest()\n"
                     "    def make_key_value(self, data):\n"
-                    "        return data.get('val', '').ljust(32, ' '), None\n"
+                    "        return md5(data.get('val', '')).hexdigest(), None\n"
                 )
                 (indexes_dir / '01custom_test_index.py').write_text(legacy_index_code, encoding='utf-8')
                 
                 # Should read and compile legacy index without raising ImportError for izip
                 database._read_indexes()
                 self.assertIn('custom_test_index', database.indexes_names)
+                idx = database.indexes_names['custom_test_index']
+                # Verify that make_key with unencoded string works cleanly
+                self.assertEqual(len(idx.make_key('active')), 32)
             finally:
                 if database.opened:
                     database.close()

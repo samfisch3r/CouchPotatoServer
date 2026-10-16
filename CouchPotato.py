@@ -17,6 +17,20 @@ base_path = dirname(os.path.abspath(__file__))
 # Keep installed dependencies ahead of the legacy bundled libraries.
 sys.path.append(os.path.join(base_path, 'libs'))
 
+import hashlib
+
+for _hash_algo in ('md5', 'sha1', 'sha256'):
+    _orig_hash_fn = getattr(hashlib, _hash_algo, None)
+    if _orig_hash_fn and not getattr(_orig_hash_fn, '_cp_wrapped', False):
+        def _make_hash_wrapper(orig_fn):
+            def _wrapped_hash(data=b'', *args, **kwargs):
+                if isinstance(data, str):
+                    data = data.encode('utf-8')
+                return orig_fn(data, *args, **kwargs)
+            _wrapped_hash._cp_wrapped = True
+            return _wrapped_hash
+        setattr(hashlib, _hash_algo, _make_hash_wrapper(_orig_hash_fn))
+
 from couchpotato.environment import Env
 from couchpotato.core.helpers.variable import getDataDir, removePyc
 
