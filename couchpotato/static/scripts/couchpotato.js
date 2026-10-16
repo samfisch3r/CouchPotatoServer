@@ -1,4 +1,4 @@
-﻿var CouchPotato = new Class({
+var CouchPotato = new Class({
 
 	Implements: [Events, Options],
 
@@ -409,12 +409,6 @@
 
 		return new Element('div.group_userscript').adopt(
 			new Element('div').adopt(
-				new Element('a.userscript.button', {
-					'text': 'Install extension',
-					'href': 'https://couchpota.to/extension/',
-					'target': '_blank'
-				}),
-				new Element('span.or[text=or]'),
 				new Element('span.bookmarklet').adopt(
 					new Element('a.button', {
 						'text': '+CouchPotato',
@@ -436,10 +430,7 @@
 						'text': '⇽ Drag this to your bookmarks'
 					})
 				)
-			),
-			new Element('img', {
-				'src': 'https://couchpota.to/media/images/userscript.gif'
-			})
+			)
 		);
 	},
 

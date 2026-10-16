@@ -81,9 +81,17 @@ class Provider(Plugin):
                 if decode_from:
                     data = data.decode(decode_from)
 
+                # Do not try to parse HTML as JSON
+                if data.startswith(b'<') if isinstance(data, bytes) else data.startswith('<'):
+                    log.debug('Received HTML instead of JSON for %s from %s', self.getName(), url)
+                    return []
+
                 return json.loads(data)
-            except:
-                log.error('Failed to parsing %s: %s', (self.getName(), traceback.format_exc()))
+            except Exception as e:
+                if kwargs.get('show_error', True):
+                    log.warning('Failed parsing JSON in %s: %s', (self.getName(), e))
+                else:
+                    log.debug('Failed parsing JSON in %s: %s', (self.getName(), e))
 
         return []
 

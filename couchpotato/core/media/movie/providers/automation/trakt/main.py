@@ -38,8 +38,8 @@ class Trakt(Automation, TraktBase):
 
     urls = {
         'watchlist': 'sync/watchlist/movies?extended=full',
-        'oauth': 'https://api.couchpota.to/authorize/trakt/',
-        'refresh_token': 'https://api.couchpota.to/authorize/trakt_refresh/',
+        'oauth': '',
+        'refresh_token': '',
     }
 
     def __init__(self):
@@ -59,6 +59,9 @@ class Trakt(Automation, TraktBase):
 
             prop_name = 'last_trakt_refresh'
             last_refresh = int(Env.prop(prop_name, default = 0))
+
+            if not self.urls.get('refresh_token'):
+                return
 
             if last_refresh < time.time()-4838400:  # refresh every 8 weeks
                 log.debug('Refreshing trakt token')
@@ -95,6 +98,12 @@ class Trakt(Automation, TraktBase):
     def getAuthorizationUrl(self, host = None, **kwargs):
         callback_url = cleanHost(host) + '%sautomation.trakt.credentials/' % (Env.get('api_base').lstrip('/'))
         log.debug('callback_url is %s', callback_url)
+
+        if not self.urls.get('oauth'):
+            return {
+                'success': False,
+                'message': 'Trakt OAuth proxy service is no longer available.',
+            }
 
         target_url = self.urls['oauth'] + "?target=" + callback_url
         log.debug('target_url is %s', target_url)
