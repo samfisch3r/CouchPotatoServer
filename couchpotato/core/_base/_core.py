@@ -122,10 +122,16 @@ class Core(Plugin):
         def shutdown():
             self.initShutdown()
 
-        if IOLoop.current()._closing:
+        loop = IOLoop.current()
+        is_closing = getattr(loop, 'closing', getattr(loop, '_closing', False))
+        if is_closing:
             shutdown()
         else:
-            IOLoop.current().add_callback(shutdown)
+            try:
+                add_cb = getattr(loop, 'add_callback_from_signal', loop.add_callback)
+                add_cb(shutdown)
+            except Exception:
+                shutdown()
 
         return 'shutdown'
 
@@ -176,7 +182,8 @@ class Core(Plugin):
         loop = IOLoop.current()
 
         try:
-            if not loop._closing:
+            is_closing = getattr(loop, 'closing', getattr(loop, '_closing', False))
+            if not is_closing:
                 loop.stop()
         except RuntimeError:
             pass

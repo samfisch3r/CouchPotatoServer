@@ -92,6 +92,9 @@ class Loader(object):
         return True
 
     def onExit(self, signal, frame):
+        if getattr(self, '_exiting', False):
+            sys.exit(0)
+        self._exiting = True
         from couchpotato.core.event import fireEvent
         fireEvent('app.shutdown', single=True)
 
