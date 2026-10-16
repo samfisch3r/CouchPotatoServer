@@ -260,24 +260,19 @@ class DatabasePython3Test(unittest.TestCase):
                 doc2 = {'_t': 'media', 'type': 'movie', 'title': 'Movie 2'}
                 database.insert(doc1)
                 database.insert(doc2)
-
-                orig_id_get = database.id_ind.get
-                call_count = [0]
+                database.delete(doc1)
 
                 def mock_id_get(key):
-                    call_count[0] += 1
-                    # Raise ElemNotFound on the first lookup to simulate an unlinked/orphaned bucket entry
-                    if call_count[0] == 1:
-                        raise ElemNotFound(f"Location '{key}' not found")
-                    return orig_id_get(key)
+                    raise ElemNotFound(f"Location '{key}' not found")
 
                 database.id_ind.get = mock_id_get
 
-                # Reindex must not raise ElemNotFound, but skip the orphaned entry cleanly
+                # Reindex must not rely on id_ind.get, and must index active doc2 while skipping deleted doc1
                 database.reindex()
 
                 movies = list(database.get_many('media_by_type', 'movie'))
                 self.assertEqual(len(movies), 1)
+                self.assertEqual(movies[0]['_id'], doc2['_id'])
             finally:
                 if database.opened:
                     database.close()

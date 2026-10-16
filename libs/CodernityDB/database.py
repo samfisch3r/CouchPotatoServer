@@ -873,12 +873,15 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
             self.compact_index(index)
 
     def _single_reindex_index(self, index, data):
+        status = data.get('_status')
+        if status in ('d', 'u'):
+            return
+        doc_id = data.get('_id')
+        if not doc_id:
+            return
         try:
-            doc_id, rev, start, size, status = self.id_ind.get(
-                data['_id'])  # it's cached so it's ok
-            if status != 'd' and status != 'u':
-                self._single_insert_index(index, data, doc_id)
-        except (RecordNotFound, RecordDeleted, KeyError, ElemNotFound, DocIdNotFound, IndexException):
+            self._single_insert_index(index, data, doc_id)
+        except Exception:
             pass
 
     def reindex_index(self, index):
@@ -919,8 +922,36 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
         del index.reindexing
 
     def _reindex_indexes(self):
-        for index in self.indexes[1:]:
-            self.reindex_index(index)
+        indexes = [ind for ind in self.indexes[1:] if ind.name != 'id']
+        if not indexes:
+            return
+
+        for index in indexes:
+            index.reindexing = True
+            index.destroy()
+            index.create_index()
+
+        all_iter = self.all('id')
+        while True:
+            try:
+                curr = next(all_iter)
+            except StopIteration:
+                break
+            else:
+                status = curr.get('_status')
+                if status in ('d', 'u'):
+                    continue
+                doc_id = curr.get('_id')
+                if not doc_id:
+                    continue
+                for index in indexes:
+                    try:
+                        self._single_insert_index(index, curr, doc_id)
+                    except Exception:
+                        pass
+
+        for index in indexes:
+            del index.reindexing
 
     def insert(self, data):
         """
@@ -1109,6 +1140,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                         data = {}
                     data['_id'] = _metadata_text(doc_id)
                     data['_rev'] = _metadata_text(unk)
+                    data['_status'] = status
                 else:
                     data = {}
                     if with_storage and size:
