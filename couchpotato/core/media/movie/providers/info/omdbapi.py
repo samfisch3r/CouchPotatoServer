@@ -42,7 +42,7 @@ class OMDBAPI(MovieProvider):
 
         cache_key = 'omdbapi.cache.%s' % q
         url = self.urls['search'] % (self.getApiKey(), tryUrlencode({'t': name_year.get('name'), 'y': name_year.get('year', '')}))
-        cached = self.getCache(cache_key, url, timeout = 3, headers = {'User-Agent': Env.getIdentifier()})
+        cached = self.getCache(cache_key, url, timeout = 3, show_error = False, headers = {'User-Agent': Env.getIdentifier()})
 
         if cached:
             result = self.parseMovie(cached)
@@ -60,7 +60,7 @@ class OMDBAPI(MovieProvider):
 
         cache_key = 'omdbapi.cache.%s' % identifier
         url = self.urls['info'] % (self.getApiKey(), identifier)
-        cached = self.getCache(cache_key, url, timeout = 3, headers = {'User-Agent': Env.getIdentifier()})
+        cached = self.getCache(cache_key, url, timeout = 3, show_error = False, headers = {'User-Agent': Env.getIdentifier()})
 
         if cached:
             result = self.parseMovie(cached)
@@ -126,13 +126,15 @@ class OMDBAPI(MovieProvider):
         return movie_data
 
     def isDisabled(self):
-        if self.getApiKey() == '':
-            log.error('No API key provided.')
+        key = self.getApiKey()
+        if not key or key == 'bbc0e412':
             return True
         return False
 
     def getApiKey(self):
         apikey = self.conf('api_key')
+        if not apikey or apikey == 'bbc0e412':
+            return ''
         return apikey
 
     def runtimeToMinutes(self, runtime_str):
@@ -152,14 +154,14 @@ config = [{
     'groups': [
         {
             'tab': 'providers',
-            'name': 'tmdb',
+            'name': 'omdbapi',
             'label': 'OMDB API',
-            'hidden': True,
-            'description': 'Used for all calls to TheMovieDB.',
+            'hidden': False,
+            'description': 'Used for movie info from OMDB (requires free API key from omdbapi.com).',
             'options': [
                 {
                     'name': 'api_key',
-                    'default': 'bbc0e412',  # Don't be a dick and use this somewhere else
+                    'default': '',
                     'label': 'Api Key',
                 },
             ],

@@ -205,10 +205,10 @@ class Plugin(object):
 
         self.wait(host, url)
         status_code = None
+        req_headers = {str(k): str(v) for k, v in headers.items() if v is not None}
         try:
-
             kwargs = {
-                'headers': headers,
+                'headers': req_headers,
                 'data': data if len(data) > 0 else None,
                 'timeout': timeout,
                 'files': files,
