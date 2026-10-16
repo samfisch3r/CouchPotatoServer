@@ -61,37 +61,11 @@ class ITunes(Automation, RSS):
             except:
                 log.error('Failed loading iTunes rss feed: %s %s', (url, traceback.format_exc()))
 
-        return movies
+    def isDisabled(self):
+        return True
+
+    def getIMDBids(self):
+        return []
 
 
-config = [{
-    'name': 'itunes',
-    'groups': [
-        {
-            'tab': 'automation',
-            'list': 'automation_providers',
-            'name': 'itunes_automation',
-            'label': 'iTunes',
-            'description': 'From any <a href="http://itunes.apple.com/rss" target="_blank">iTunes</a> Store feed. Url should be the RSS link.',
-            'options': [
-                {
-                    'name': 'automation_enabled',
-                    'default': False,
-                    'type': 'enabler',
-                },
-                {
-                    'name': 'automation_urls_use',
-                    'label': 'Use',
-                    'default': ',',
-                },
-                {
-                    'name': 'automation_urls',
-                    'label': 'url',
-                    'type': 'combined',
-                    'combine': ['automation_urls_use', 'automation_urls'],
-                    'default': 'https://itunes.apple.com/rss/topmovies/limit=25/xml,',
-                },
-            ],
-        },
-    ],
-}]
+config = []

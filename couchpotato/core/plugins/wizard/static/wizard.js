@@ -78,7 +78,7 @@ Page.Wizard = new Class({
 		}
 	},
 
-	groups: ['welcome', 'general', 'downloaders', 'searcher', 'renamer', 'automation', 'finish'],
+	groups: ['welcome', 'general', 'downloaders', 'searcher', 'renamer', 'finish'],
 
 	open: function(action, params){
 		var self = this;

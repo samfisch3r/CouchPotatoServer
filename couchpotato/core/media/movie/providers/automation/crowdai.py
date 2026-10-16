@@ -47,44 +47,11 @@ class CrowdAI(Automation, RSS):
                     if imdb and self.isMinimalMovie(imdb):
                         movies.append(imdb['imdb'])
 
-        return movies
+    def isDisabled(self):
+        return True
+
+    def getIMDBids(self):
+        return []
 
 
-config = [{
-    'name': 'crowdai',
-    'groups': [
-        {
-            'tab': 'automation',
-            'list': 'automation_providers',
-            'name': 'crowdai_automation',
-            'label': 'CrowdAI',
-            'description': ('Imports from any newznab powered NZB providers RSS feed depending on the number of grabs per movie.',
-                            'Go to your newznab site and find the RSS section. Then copy the copy paste the link under "Movies > x264 feed" here.'),
-            'options': [
-                {
-                    'name': 'automation_enabled',
-                    'default': False,
-                    'type': 'enabler',
-                },
-                {
-                    'name': 'automation_urls_use',
-                    'label': 'Use',
-                    'default': '1',
-                },
-                {
-                    'name': 'automation_urls',
-                    'label': 'url',
-                    'type': 'combined',
-                    'combine': ['automation_urls_use', 'automation_urls'],
-                    'default': 'http://YOUR_PROVIDER/rss?t=THE_MOVIE_CATEGORY&i=YOUR_USER_ID&r=YOUR_API_KEY&res=2&rls=2&num=100',
-                },
-                {
-                    'name': 'number_grabs',
-                    'default': '500',
-                    'label': 'Grab threshold',
-                    'description': 'Number of grabs required',
-                },
-            ],
-        },
-    ],
-}]
+config = []

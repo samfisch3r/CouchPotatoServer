@@ -101,92 +101,14 @@ class Bluray(Automation, RSS):
 
             if imdb:
                 if self.isMinimalMovie(imdb):
-                    movies.append(imdb['imdb'])
+    def isDisabled(self):
+        return True
 
-        return movies
+    def getIMDBids(self):
+        return []
 
     def getChartList(self):
-        cache_key = 'bluray.charts'
-        movie_list = {
-            'name': 'Blu-ray.com - New Releases',
-            'url': self.display_url,
-            'order': self.chart_order,
-            'list': self.getCache(cache_key) or []
-        }
-
-        if not movie_list['list']:
-            movie_ids = []
-            max_items = 10
-            rss_movies = self.getRSSData(self.rss_url)
-
-            for movie in rss_movies:
-                name = self.getTextElement(movie, 'title').lower().split('blu-ray')[0].strip('(').rstrip()
-                year = self.getTextElement(movie, 'description').split('|')[1].strip('(').strip()
-
-                if not name.find('/') == -1: # make sure it is not a double movie release
-                    continue
-
-                movie = self.search(name, year)
-
-                if movie:
-
-                    if movie.get('imdb') in movie_ids:
-                        continue
-
-                    is_movie = fireEvent('movie.is_movie', identifier = movie.get('imdb'), single = True)
-                    if not is_movie:
-                        continue
-
-                    movie_ids.append(movie.get('imdb'))
-                    movie_list['list'].append( movie )
-                    if len(movie_list['list']) >= max_items:
-                        break
-
-            if not movie_list['list']:
-                return
-
-            self.setCache(cache_key, movie_list['list'], timeout = 259200)
-
-        return [movie_list]
+        return []
 
 
-config = [{
-    'name': 'bluray',
-    'groups': [
-        {
-            'tab': 'automation',
-            'list': 'automation_providers',
-            'name': 'bluray_automation',
-            'label': 'Blu-ray.com',
-            'description': 'Imports movies from blu-ray.com.',
-            'options': [
-                {
-                    'name': 'automation_enabled',
-                    'default': False,
-                    'type': 'enabler',
-                },
-                {
-                    'name': 'backlog',
-                    'advanced': True,
-                    'description': ('Parses the history until the minimum movie year is reached. (Takes a while)', 'Will be disabled once it has completed'),
-                    'default': False,
-                    'type': 'bool',
-                },
-            ],
-        },
-        {
-            'tab': 'display',
-            'list': 'charts_providers',
-            'name': 'bluray_charts_display',
-            'label': 'Blu-ray.com',
-            'description': 'Display <a href="http://www.blu-ray.com/movies/movies.php?show=newreleases" target="_blank">new releases</a> from Blu-ray.com',
-            'options': [
-                {
-                    'name': 'chart_display_enabled',
-                    'default': True,
-                    'type': 'enabler',
-                },
-            ],
-        },
-    ],
-}]
+config = []

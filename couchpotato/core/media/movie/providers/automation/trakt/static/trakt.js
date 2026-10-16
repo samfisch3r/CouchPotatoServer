@@ -12,6 +12,9 @@ var TraktAutomation = new Class({
 
 		setting_page.addEvent('create', function(){
 
+			if (!setting_page.tabs.automation || !setting_page.tabs.automation.groups || !setting_page.tabs.automation.groups.trakt_automation)
+				return;
+
 		 	var fieldset = setting_page.tabs.automation.groups.trakt_automation,
 		 		l = window.location;
 

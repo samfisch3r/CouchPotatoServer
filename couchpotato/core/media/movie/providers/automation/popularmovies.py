@@ -24,25 +24,11 @@ class PopularMovies(Automation):
                 if self.isMinimalMovie(info):
                     movies.append(imdb_id)
 
-        return movies
+    def isDisabled(self):
+        return True
+
+    def getIMDBids(self):
+        return []
 
 
-config = [{
-    'name': 'popularmovies',
-    'groups': [
-        {
-            'tab': 'automation',
-            'list': 'automation_providers',
-            'name': 'popularmovies_automation',
-            'label': 'Popular Movies',
-            'description': 'Imports the <a href="http://movies.stevenlu.com/" target="_blank">top titles of movies that have been in theaters</a>. Script provided by <a href="https://github.com/sjlu/popular-movies" target="_blank">Steven Lu</a>',
-            'options': [
-                {
-                    'name': 'automation_enabled',
-                    'default': False,
-                    'type': 'enabler',
-                },
-            ],
-        },
-    ],
-}]
+config = []

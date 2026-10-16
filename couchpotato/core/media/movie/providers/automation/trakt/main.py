@@ -77,20 +77,11 @@ class Trakt(Automation, TraktBase):
                     log.error('Failed refreshing Trakt token, please re-register in settings')
 
         elif token and not refresh_token:
-            log.error('Refresh token is missing, please re-register Trakt for autorefresh of the token in the future')
+    def isDisabled(self):
+        return True
 
     def getIMDBids(self):
-        movies = []
-        for movie in self.getWatchlist():
-            m = movie.get('movie')
-            m['original_title'] = m['title']
-            log.debug("Movie: %s", m)
-            if self.isMinimalMovie(m):
-                log.info("Trakt automation: %s satisfies requirements, added", m.get('title'))
-                movies.append(m.get('ids').get('imdb'))
-                continue
-
-        return movies
+        return []
 
     def getWatchlist(self):
         return self.call(self.urls['watchlist'])
