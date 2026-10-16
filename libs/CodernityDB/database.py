@@ -1110,8 +1110,11 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                     data['key'] = _metadata_text(unk)
                     data['_id'] = _metadata_text(doc_id)
                     if with_doc:
-                        doc = self.get('id', doc_id, False)
-                        data['doc'] = doc
+                        try:
+                            doc = self.get('id', doc_id, False)
+                            data['doc'] = doc
+                        except (RecordNotFound, RecordDeleted):
+                            continue
                 yield data
 
     def run(self, index_name, target_funct, *args, **kwargs):

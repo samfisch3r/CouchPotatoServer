@@ -55,7 +55,11 @@ class _BinaryStruct:
         ))
 
     def unpack(self, data):
-        return self._struct.unpack(data)
+        res = self._struct.unpack(data)
+        return tuple(
+            x.decode('ascii') if (isinstance(x, bytes) and len(x) == 1 and x in b'odu') else x
+            for x in res
+        )
 
 
 def _python2_string_hash(value):
@@ -602,6 +606,8 @@ class IU_UniqueHashIndex(IU_HashIndex):
         curr_data = self.buckets.read(self.bucket_line_size)
         if curr_data:
             location = self.bucket_struct.unpack(curr_data)[0]
+            if not location:
+                raise ElemNotFound("Location '%s' not found" % key)
             found_at, l_key, rev, start, size, status, _next = self._locate_key(
                 key, location)
             return l_key, rev, start, size, status

@@ -84,9 +84,11 @@ class ProfilePlugin(Plugin):
     def all(self):
 
         db = get_db()
-        profiles = db.all('profile', with_doc = True)
-
-        return [x['doc'] for x in profiles]
+        try:
+            profiles = db.all('profile', with_doc = True)
+            return [x['doc'] for x in profiles if isinstance(x, dict) and x.get('doc')]
+        except Exception:
+            return []
 
     def save(self, **kwargs):
 

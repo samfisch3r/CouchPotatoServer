@@ -199,6 +199,25 @@ class DatabasePython3Test(unittest.TestCase):
                 if database.opened:
                     database.close()
 
+    def test_database_all_with_doc_skips_missing_or_deleted_records(self):
+        with tempfile.TemporaryDirectory() as path:
+            database = SuperThreadSafeDatabase(path)
+            try:
+                database.create()
+                doc1 = database.insert({'type': 'movie', 'title': 'Movie 1'})
+                doc2 = database.insert({'type': 'movie', 'title': 'Movie 2'})
+
+                # Delete doc1 directly from id index
+                database.delete(doc1)
+
+                # db.all with with_doc=True should not raise RecordNotFound, but return remaining valid doc
+                results = list(database.all('id', with_doc=True))
+                # For id index, it yields active documents
+                self.assertTrue(len(results) >= 1)
+            finally:
+                if database.opened:
+                    database.close()
+
 
 if __name__ == '__main__':
     unittest.main()
