@@ -953,7 +953,12 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                 reindexed_count += 1
 
         for index in indexes:
+            try:
+                index.flush()
+            except Exception:
+                pass
             del index.reindexing
+        self.flush()
         return reindexed_count
 
     def insert(self, data):

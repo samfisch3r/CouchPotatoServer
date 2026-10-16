@@ -181,8 +181,12 @@ class MediaPlugin(MediaBase):
 
         status = list(status if isinstance(status, (list, tuple)) else [status])
 
+        yielded_ids = set()
         for s in status:
             for ms in db.get_many('media_status', s):
+                if ms['_id'] in yielded_ids:
+                    continue
+                yielded_ids.add(ms['_id'])
                 if with_doc:
                     try:
                         doc = db.get('id', ms['_id'])
@@ -197,6 +201,20 @@ class MediaPlugin(MediaBase):
                         fireEvent('database.delete_corrupted', ms.get('_id'), traceback_error = traceback.format_exc(0))
                 else:
                     yield ms
+
+        # Fallback if media_status index yielded no records: scan id store directly
+        if not yielded_ids:
+            try:
+                for doc in db.all('id'):
+                    if doc.get('_t') == 'media' and doc.get('status') in status:
+                        if types and doc.get('type') not in types:
+                            continue
+                        if with_doc:
+                            yield doc
+                        else:
+                            yield {'_id': doc['_id'], 'status': doc.get('status')}
+            except Exception:
+                pass
 
     def withIdentifiers(self, identifiers, with_doc = False):
         db = get_db()
@@ -232,6 +250,21 @@ class MediaPlugin(MediaBase):
         else:
             all_media_ids = set([x['_id'] for x in db.all('media')])
 
+        # Fallback: if media_by_type returned no entries, try media index or primary id store
+        if not all_media_ids:
+            try:
+                all_media_ids = set([x['_id'] for x in db.all('media')])
+            except Exception:
+                pass
+            if not all_media_ids:
+                try:
+                    all_media_ids = set([
+                        doc['_id'] for doc in db.all('id')
+                        if doc.get('_t') == 'media' and (not types or doc.get('type') in types)
+                    ])
+                except Exception:
+                    pass
+
         media_ids = list(all_media_ids)
         filter_by = {}
 
@@ -240,6 +273,16 @@ class MediaPlugin(MediaBase):
             filter_by['media_status'] = set()
             for media_status in fireEvent('media.with_status', status, with_doc = False, single = True):
                 filter_by['media_status'].add(media_status.get('_id'))
+
+            # Fallback if status filter returned empty: check documents directly
+            if not filter_by['media_status'] and all_media_ids:
+                for media_id in all_media_ids:
+                    try:
+                        doc = fireEvent('media.get', media_id, single = True)
+                        if doc and doc.get('status') in status:
+                            filter_by['media_status'].add(media_id)
+                    except Exception:
+                        pass
 
         # Filter on release status
         if release_status and len(release_status) > 0:
