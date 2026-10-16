@@ -329,6 +329,42 @@ class DatabasePython3Test(unittest.TestCase):
         finally:
             event.events['media.get'] = saved_media_get
 
+    def test_database_get_handles_non_dict_storage(self):
+        with tempfile.TemporaryDirectory() as path:
+            database = SuperThreadSafeDatabase(path)
+            try:
+                database.create()
+                doc = {'_t': 'media', 'title': 'Test Movie'}
+                inserted = database.insert(doc)
+
+                # Mock storage.get to return a list instead of a dict
+                orig_storage_get = database.id_ind.storage.get
+                database.id_ind.storage.get = lambda *args, **kwargs: [{'nested': 'doc'}]
+
+                record = database.get('id', inserted['_id'])
+                self.assertIsInstance(record, dict)
+                self.assertEqual(record['_id'], inserted['_id'])
+                self.assertEqual(record.get('nested'), 'doc')
+
+                # Mock storage.get to return a list of primitives
+                database.id_ind.storage.get = lambda *args, **kwargs: ['val1', 'val2']
+                record2 = database.get('id', inserted['_id'])
+                self.assertIsInstance(record2, dict)
+                self.assertEqual(record2['_id'], inserted['_id'])
+                self.assertEqual(record2.get('_data'), ['val1', 'val2'])
+            finally:
+                if database.opened:
+                    database.close()
+
+    def test_py2_marshal_loads_resilience(self):
+        from CodernityDB.index import py2_marshal_loads
+        # Truncated dict gracefully returns recovered key-value pairs
+        self.assertEqual(py2_marshal_loads(b'{s\x05\x00\x00\x00titles\x04\x00\x00\x00test'), {'title': 'test'})
+        # Small tuple (code ')')
+        self.assertEqual(py2_marshal_loads(b')\x02i\x01\x00\x00\x00i\x02\x00\x00\x00'), (1, 2))
+        # Empty input
+        self.assertEqual(py2_marshal_loads(b''), {})
+
 
 if __name__ == '__main__':
     unittest.main()

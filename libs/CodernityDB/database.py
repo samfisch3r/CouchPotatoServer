@@ -1045,8 +1045,12 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
             storage = ind.storage
             data = storage.get(start, size, status)
         else:
-
             data = {}
+        if not isinstance(data, dict):
+            if isinstance(data, (list, tuple)) and len(data) > 0 and isinstance(data[0], dict):
+                data = data[0]
+            else:
+                data = {'_data': data} if data is not None else {}
         if with_doc and index_name != 'id':
             storage = ind.storage
             doc = self.get('id', l_key, False)
@@ -1102,6 +1106,11 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                     data = storage.get(*ind_data[-3:])
                 else:
                     data = {}
+                if not isinstance(data, dict):
+                    if isinstance(data, (list, tuple)) and len(data) > 0 and isinstance(data[0], dict):
+                        data = data[0]
+                    else:
+                        data = {'_data': data} if data is not None else {}
                 doc_id = ind_data[0]
                 if with_doc:
                     doc = self.get('id', doc_id, False)
@@ -1146,6 +1155,11 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                             continue
                     else:
                         data = {}
+                    if not isinstance(data, dict):
+                        if isinstance(data, (list, tuple)) and len(data) > 0 and isinstance(data[0], dict):
+                            data = data[0]
+                        else:
+                            continue
                     data['_id'] = _metadata_text(doc_id)
                     data['_rev'] = _metadata_text(unk)
                     data['_status'] = status

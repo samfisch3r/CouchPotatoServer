@@ -73,41 +73,41 @@ def py2_marshal_loads(b):
         nonlocal pos
         if pos >= len(b):
             raise EOFError('EOF in py2_marshal')
-        type_code = b[pos:pos+1]
+        raw_byte = b[pos]
         pos += 1
+        flag_ref = bool(raw_byte & 0x80)
+        type_code = bytes([raw_byte & 0x7f]) if flag_ref else bytes([raw_byte])
+        val = None
+
         if type_code == b'N':
-            return None
+            val = None
         elif type_code == b'T':
-            return True
+            val = True
         elif type_code == b'F':
-            return False
+            val = False
         elif type_code == b'i':
             val = struct.unpack('<i', b[pos:pos+4])[0]
             pos += 4
-            return val
         elif type_code == b'I':
             val = struct.unpack('<q', b[pos:pos+8])[0]
             pos += 8
-            return val
         elif type_code == b'g':
             val = struct.unpack('<d', b[pos:pos+8])[0]
             pos += 8
-            return val
         elif type_code == b'f':
             length = b[pos]
             pos += 1
             val = float(b[pos:pos+length])
             pos += length
-            return val
         elif type_code == b's':
             length = struct.unpack('<i', b[pos:pos+4])[0]
             pos += 4
             val = b[pos:pos+length]
             pos += length
             try:
-                return val.decode('utf-8', 'surrogateescape')
+                val = val.decode('utf-8', 'surrogateescape')
             except Exception:
-                return val
+                pass
         elif type_code == b't':
             length = struct.unpack('<i', b[pos:pos+4])[0]
             pos += 4
@@ -115,47 +115,64 @@ def py2_marshal_loads(b):
             pos += length
             val = raw.decode('utf-8', 'surrogateescape')
             interned.append(val)
-            return val
-        elif type_code == b'R':
+        elif type_code in (b'R', b'r'):
             idx = struct.unpack('<i', b[pos:pos+4])[0]
             pos += 4
-            return interned[idx]
+            val = interned[idx] if idx < len(interned) else None
         elif type_code == b'u':
             length = struct.unpack('<i', b[pos:pos+4])[0]
             pos += 4
             val = b[pos:pos+length].decode('utf-8', 'surrogateescape')
             pos += length
-            return val
-        elif type_code in (b'(', b'['):
-            length = struct.unpack('<i', b[pos:pos+4])[0]
-            pos += 4
-            items = [read_obj() for _ in range(length)]
-            return tuple(items) if type_code == b'(' else items
+        elif type_code in (b'(', b'[', b')'):
+            if type_code == b')':
+                length = b[pos]
+                pos += 1
+            else:
+                length = struct.unpack('<i', b[pos:pos+4])[0]
+                pos += 4
+            items = []
+            for _ in range(length):
+                try:
+                    items.append(read_obj())
+                except EOFError:
+                    break
+            val = tuple(items) if type_code in (b'(', b')') else items
         elif type_code == b'{':
             res = {}
-            while True:
-                if pos >= len(b) or b[pos:pos+1] == b'0':
+            while pos < len(b):
+                if b[pos:pos+1] == b'0':
                     pos += 1
                     break
-                k = read_obj()
-                v = read_obj()
-                res[k] = v
-            return res
+                try:
+                    k = read_obj()
+                    v = read_obj()
+                    res[k] = v
+                except EOFError:
+                    break
+            val = res
         elif type_code == b'l':
             size = struct.unpack('<i', b[pos:pos+4])[0]
             pos += 4
             if size == 0:
-                return 0
-            n = abs(size)
-            digits = struct.unpack(f'<{n}H', b[pos:pos+2*n])
-            pos += 2 * n
-            val = sum(digit * (1 << (15 * i)) for i, digit in enumerate(digits))
-            return -val if size < 0 else val
+                val = 0
+            else:
+                n = abs(size)
+                digits = struct.unpack(f'<{n}H', b[pos:pos+2*n])
+                pos += 2 * n
+                val = sum(digit * (1 << (15 * i)) for i, digit in enumerate(digits))
+                if size < 0:
+                    val = -val
         elif type_code in (b'<', b'>'):
             length = struct.unpack('<i', b[pos:pos+4])[0]
             pos += 4
-            items = {read_obj() for _ in range(length)}
-            return frozenset(items) if type_code == b'>' else items
+            items = set()
+            for _ in range(length):
+                try:
+                    items.add(read_obj())
+                except EOFError:
+                    break
+            val = frozenset(items) if type_code == b'>' else items
         elif type_code in (b'a', b'A', b'z', b'Z'):
             length = struct.unpack('<i', b[pos:pos+4])[0] if type_code in (b'a', b'A') else b[pos]
             pos += 4 if type_code in (b'a', b'A') else 1
@@ -163,15 +180,23 @@ def py2_marshal_loads(b):
             pos += length
             if type_code in (b'A', b'Z'):
                 interned.append(val)
-            return val
-        elif type_code == b'?':
-            return None
-        elif type_code == b'0':
-            return None
+        elif type_code in (b'?', b'0'):
+            val = None
+        elif type_code == b'.':
+            val = Ellipsis
+        elif type_code == b'S':
+            val = StopIteration
         else:
             raise ValueError(f'Unknown py2 marshal code {type_code!r} at offset {pos-1}')
 
-    return read_obj()
+        if flag_ref and type_code not in (b't', b'A', b'Z'):
+            interned.append(val)
+        return val
+
+    try:
+        return read_obj()
+    except EOFError:
+        return {}
 
 
 class Index(object):

@@ -111,6 +111,8 @@ class Release(Plugin):
         medias = fireEvent('media.with_status', ['done', 'active'], single = True)
 
         for media in medias:
+            if not isinstance(media, dict):
+                continue
             if media.get('last_edit', 0) > (now - week):
                 continue
 

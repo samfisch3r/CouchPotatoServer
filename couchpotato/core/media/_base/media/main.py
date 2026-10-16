@@ -192,13 +192,17 @@ class MediaPlugin(MediaBase):
                     try:
                         doc = db.get('id', ms['_id'])
 
+                        if not isinstance(doc, dict):
+                            log.warning('Media record %s is not a dict: %r', ms.get('_id'), type(doc))
+                            continue
+
                         if types and doc.get('type') not in types:
                             continue
 
                         yield doc
                     except (RecordDeleted, RecordNotFound):
                         log.debug('Record not found, skipping: %s', ms['_id'])
-                    except (ValueError, EOFError):
+                    except (ValueError, EOFError, TypeError, AttributeError):
                         log.warning('Error reading media record %s: %s', ms.get('_id'), traceback.format_exc(0))
                 else:
                     yield ms
