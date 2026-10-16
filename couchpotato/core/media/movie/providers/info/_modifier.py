@@ -17,6 +17,7 @@ autoload = 'MovieResultModifier'
 class MovieResultModifier(Plugin):
 
     default_info = {
+        'type': 'movie',
         'tmdb_id': 0,
         'titles': [],
         'original_title': '',

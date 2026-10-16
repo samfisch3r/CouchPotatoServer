@@ -98,7 +98,9 @@ class CouchPotatoApi(MovieProvider):
 
         result = self.getJsonData(url, headers = self.getRequestHeaders())
         if result:
-            return dict((k, v) for k, v in result.items() if v)
+            info = dict((k, v) for k, v in result.items() if v)
+            info['type'] = 'movie'
+            return info
 
         return {}
 

@@ -30,6 +30,7 @@ class Search(Plugin):
     def search(self, q = '', types = None, **kwargs):
 
         # Make sure types is the correct instance
+        types = types or kwargs.get('type')
         if isinstance(types, str):
             types = [types]
         elif isinstance(types, (list, tuple, set)):
@@ -40,14 +41,36 @@ class Search(Plugin):
         if not types:
             if imdb_identifier:
                 result = fireEvent('movie.info', identifier = imdb_identifier, merge = True)
-                result = {result['type']: [result]}
+                if result and isinstance(result, dict) and (result.get('titles') or result.get('original_title') or result.get('imdb') or result.get('tmdb_id')):
+                    media_type = result.get('type', 'movie')
+                    result['type'] = media_type
+                    result = {media_type: [result]}
+                elif isinstance(result, list) and len(result) > 0:
+                    media_type = 'movie'
+                    for item in result:
+                        if isinstance(item, dict):
+                            media_type = item.get('type', media_type)
+                            item['type'] = media_type
+                    result = {media_type: result}
+                else:
+                    result = {}
             else:
                 result = fireEvent('info.search', q = q, merge = True)
         else:
             result = {}
             for media_type in types:
                 if imdb_identifier:
-                    result[media_type] = fireEvent('%s.info' % media_type, identifier = imdb_identifier)
+                    info = fireEvent('%s.info' % media_type, identifier = imdb_identifier, merge = True)
+                    if info and isinstance(info, dict) and (info.get('titles') or info.get('original_title') or info.get('imdb') or info.get('tmdb_id')):
+                        info['type'] = info.get('type', media_type)
+                        result[media_type] = [info]
+                    elif isinstance(info, list):
+                        for item in info:
+                            if isinstance(item, dict):
+                                item['type'] = item.get('type', media_type)
+                        result[media_type] = info
+                    else:
+                        result[media_type] = []
                 else:
                     result[media_type] = fireEvent('%s.search' % media_type, q = q)
 
