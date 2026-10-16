@@ -20,8 +20,8 @@ var Movie = new Class({
 		);
 		self.el.store('klass', self);
 
-		self.profile = Quality.getProfile(data.profile_id) || {};
-		self.category = CategoryList.getCategory(data.category_id) || {};
+		self.profile = (typeof Quality !== 'undefined' && Quality.getProfile) ? (Quality.getProfile(data.profile_id) || {}) : {};
+		self.category = (typeof CategoryList !== 'undefined' && CategoryList.getCategory) ? (CategoryList.getCategory(data.category_id) || {}) : {};
 		self.parent(self, options);
 
 		self.addEvents();
@@ -176,8 +176,8 @@ var Movie = new Class({
 		self.data = notification.data;
 		self.inner.empty();
 
-		self.profile = Quality.getProfile(self.data.profile_id) || {};
-		self.category = CategoryList.getCategory(self.data.category_id) || {};
+		self.profile = (typeof Quality !== 'undefined' && Quality.getProfile) ? (Quality.getProfile(self.data.profile_id) || {}) : {};
+		self.category = (typeof CategoryList !== 'undefined' && CategoryList.getCategory) ? (CategoryList.getCategory(self.data.category_id) || {}) : {};
 		self.create();
 
 		self.select(self.select_checkbox.get('checked'));
