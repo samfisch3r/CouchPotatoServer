@@ -141,6 +141,31 @@ def py2_marshal_loads(b):
                 v = read_obj()
                 res[k] = v
             return res
+        elif type_code == b'l':
+            size = struct.unpack('<i', b[pos:pos+4])[0]
+            pos += 4
+            if size == 0:
+                return 0
+            n = abs(size)
+            digits = struct.unpack(f'<{n}H', b[pos:pos+2*n])
+            pos += 2 * n
+            val = sum(digit * (1 << (15 * i)) for i, digit in enumerate(digits))
+            return -val if size < 0 else val
+        elif type_code in (b'<', b'>'):
+            length = struct.unpack('<i', b[pos:pos+4])[0]
+            pos += 4
+            items = {read_obj() for _ in range(length)}
+            return frozenset(items) if type_code == b'>' else items
+        elif type_code in (b'a', b'A', b'z', b'Z'):
+            length = struct.unpack('<i', b[pos:pos+4])[0] if type_code in (b'a', b'A') else b[pos]
+            pos += 4 if type_code in (b'a', b'A') else 1
+            val = b[pos:pos+length].decode('utf-8', 'surrogateescape')
+            pos += length
+            if type_code in (b'A', b'Z'):
+                interned.append(val)
+            return val
+        elif type_code == b'?':
+            return None
         elif type_code == b'0':
             return None
         else:

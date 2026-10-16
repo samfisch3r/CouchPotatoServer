@@ -199,7 +199,7 @@ class MediaPlugin(MediaBase):
                     except (RecordDeleted, RecordNotFound):
                         log.debug('Record not found, skipping: %s', ms['_id'])
                     except (ValueError, EOFError):
-                        fireEvent('database.delete_corrupted', ms.get('_id'), traceback_error = traceback.format_exc(0))
+                        log.warning('Error reading media record %s: %s', ms.get('_id'), traceback.format_exc(0))
                 else:
                     yield ms
 
@@ -353,7 +353,7 @@ class MediaPlugin(MediaBase):
             if len(media_ids) == 0 or len(medias) == limit: break
 
         # Fallback in case media_title index was missing entries
-        if len(medias) == 0 and len(media_ids) > 0 and (limit < 0 or len(medias) < limit):
+        if len(media_ids) > 0 and (limit < 0 or len(medias) < limit):
             for media_id in list(media_ids):
                 if offset > 0:
                     offset -= 1
@@ -361,6 +361,8 @@ class MediaPlugin(MediaBase):
                 media = fireEvent('media.get', media_id, single = True)
                 if media:
                     medias.append(media)
+                    if len(medias) == limit:
+                        break
         if limit < 0:
             total_count = len(medias)
         elif len(medias) < limit and not search and not starts_with and not with_tags:

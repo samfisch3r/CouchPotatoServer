@@ -94,8 +94,7 @@ class Release(Plugin):
                 except:
                     log.error('Failed fixing mis-status tag: %s', traceback.format_exc())
             except ValueError:
-                fireEvent('database.delete_corrupted', release.get('key'), traceback_error = traceback.format_exc(0))
-                reindex += 1
+                log.warning('Failed reading media for release %s (media_id: %s): %s', release.get('_id'), release.get('key'), traceback.format_exc(0))
             except RecordDeleted:
                 db.delete(doc)
                 log.debug('Deleted orphaned release: %s', doc)
@@ -550,7 +549,7 @@ class Release(Plugin):
             except RecordDeleted:
                 pass
             except (ValueError, EOFError):
-                fireEvent('database.delete_corrupted', r.get('_id'), traceback_error = traceback.format_exc(0))
+                log.warning('Error reading release %s: %s', r.get('_id'), traceback.format_exc(0))
 
         releases = sorted(releases, key = lambda k: k.get('info', {}).get('score', 0), reverse = True)
 

@@ -126,8 +126,7 @@ class MovieSearcher(SearcherBase, MovieTypeBase):
 
         default_title = getTitle(movie)
         if not default_title:
-            log.error('No proper info found for movie, removing it from library to stop it from causing more issues.')
-            fireEvent('media.delete', movie['_id'], single = True)
+            log.error('No proper info found for movie %s, skipping search.', movie.get('_id'))
             return
 
         # Update media status and check if it is still not done (due to the stop searching after feature

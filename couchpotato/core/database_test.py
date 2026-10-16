@@ -277,6 +277,59 @@ class DatabasePython3Test(unittest.TestCase):
                 if database.opened:
                     database.close()
 
+    def test_py2_marshal_loads_legacy_long(self):
+        from CodernityDB.index import py2_marshal_loads
+        # 0
+        self.assertEqual(py2_marshal_loads(b'l\x00\x00\x00\x00'), 0)
+        # 1
+        self.assertEqual(py2_marshal_loads(b'l\x01\x00\x00\x00\x01\x00'), 1)
+        # -1
+        self.assertEqual(py2_marshal_loads(b'l\xff\xff\xff\xff\x01\x00'), -1)
+        # 32768 (2**15)
+        self.assertEqual(py2_marshal_loads(b'l\x02\x00\x00\x00\x00\x00\x01\x00'), 32768)
+        # Dict containing size as legacy py2 long
+        result = py2_marshal_loads(b'{s\x04\x00\x00\x00sizel\x02\x00\x00\x00\x00\x00\x01\x000')
+        self.assertEqual(result, {'size': 32768})
+
+    def test_media_list_fallback_when_title_index_is_partial(self):
+        from unittest import mock
+        from couchpotato.core.media._base.media.main import MediaPlugin
+        from couchpotato.core import event
+
+        media_plugin = MediaPlugin()
+        mock_movies = {
+            'id1': {'_id': 'id1', 'title': 'Movie A', 'status': 'active', 'type': 'movie'},
+            'id2': {'_id': 'id2', 'title': 'Movie B', 'status': 'active', 'type': 'movie'},
+        }
+
+        class MockDB:
+            def get_many(self, index, key, with_doc=False):
+                if index == 'media_by_type' and key == 'movie':
+                    return [{'_id': 'id1'}, {'_id': 'id2'}]
+                if index == 'media_status' and key == 'active':
+                    return [{'_id': 'id1', 'key': 'active'}, {'_id': 'id2', 'key': 'active'}]
+                return []
+            def all(self, index, with_doc=False):
+                if index == 'media_title':
+                    return [{'_id': 'id1', 'key': 'movie a'}]
+                return []
+
+        def mock_media_get(media_id):
+            return mock_movies.get(media_id)
+
+        saved_media_get = list(event.events.get('media.get', []))
+        event.events['media.get'] = []
+        event.addEvent('media.get', mock_media_get)
+        try:
+            with mock.patch('couchpotato.core.media._base.media.main.get_db', return_value=MockDB()):
+                total, medias = media_plugin.list(types=['movie'], status=['active'])
+                self.assertEqual(total, 2)
+                self.assertEqual(len(medias), 2)
+                self.assertEqual({m['_id'] for m in medias}, {'id1', 'id2'})
+        finally:
+            event.events['media.get'] = saved_media_get
+
 
 if __name__ == '__main__':
     unittest.main()
+
