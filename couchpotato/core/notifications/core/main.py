@@ -289,9 +289,11 @@ class CoreNotifier(Plugin):
 
                 try:
                     doc = db.get('id', n.get('_id'))
-                    if doc.get('time') > (time.time() - 604800):
+                    if doc and doc.get('time', 0) > (time.time() - 604800):
                         messages.append(doc)
-                except RecordDeleted:
+                except (RecordDeleted, RecordNotFound):
+                    pass
+                except Exception:
                     pass
 
         return {

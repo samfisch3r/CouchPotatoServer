@@ -159,7 +159,8 @@ class MediaPlugin(MediaBase):
             return media
 
         except (RecordNotFound, RecordDeleted):
-            log.error('Media with id "%s" not found', media_id)
+            log.debug('Media with id "%s" not found', media_id)
+            return None
         except:
             raise
 
@@ -360,8 +361,10 @@ class MediaPlugin(MediaBase):
                 media = fireEvent('media.get', media_id, single = True)
                 if media:
                     medias.append(media)
-                if len(medias) == limit:
-                    break
+        if limit < 0:
+            total_count = len(medias)
+        elif len(medias) < limit and not search and not starts_with and not with_tags:
+            total_count = offset + len(medias)
 
         return total_count, medias
 
