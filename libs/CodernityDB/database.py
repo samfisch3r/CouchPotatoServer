@@ -873,10 +873,13 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
             self.compact_index(index)
 
     def _single_reindex_index(self, index, data):
-        doc_id, rev, start, size, status = self.id_ind.get(
-            data['_id'])  # it's cached so it's ok
-        if status != 'd' and status != 'u':
-            self._single_insert_index(index, data, doc_id)
+        try:
+            doc_id, rev, start, size, status = self.id_ind.get(
+                data['_id'])  # it's cached so it's ok
+            if status != 'd' and status != 'u':
+                self._single_insert_index(index, data, doc_id)
+        except (RecordNotFound, RecordDeleted, KeyError):
+            pass
 
     def reindex_index(self, index):
         """
@@ -1098,7 +1101,10 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
             else:
                 if index_name == 'id':
                     if with_storage and size:
-                        data = storage.get(start, size, status)
+                        try:
+                            data = storage.get(start, size, status)
+                        except Exception:
+                            continue
                     else:
                         data = {}
                     data['_id'] = _metadata_text(doc_id)

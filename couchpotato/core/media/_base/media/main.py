@@ -274,6 +274,8 @@ class MediaPlugin(MediaBase):
             media_ids = [n for n in media_ids if n in filter_by[x]]
 
         total_count = len(media_ids)
+        log.info('Listing media: types=%s, status=%s, found %d matches (total media=%d)',
+                 types, status, total_count, len(all_media_ids))
         if total_count == 0:
             return 0, []
 
@@ -305,6 +307,18 @@ class MediaPlugin(MediaBase):
             # remove from media ids
             media_ids.remove(media_id)
             if len(media_ids) == 0 or len(medias) == limit: break
+
+        # Fallback in case media_title index was missing entries
+        if len(medias) == 0 and len(media_ids) > 0 and (limit < 0 or len(medias) < limit):
+            for media_id in list(media_ids):
+                if offset > 0:
+                    offset -= 1
+                    continue
+                media = fireEvent('media.get', media_id, single = True)
+                if media:
+                    medias.append(media)
+                if len(medias) == limit:
+                    break
 
         return total_count, medias
 

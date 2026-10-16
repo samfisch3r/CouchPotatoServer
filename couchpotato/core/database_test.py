@@ -218,6 +218,35 @@ class DatabasePython3Test(unittest.TestCase):
                 if database.opened:
                     database.close()
 
+    def test_database_reindex_rebuilds_secondary_indexes(self):
+        from couchpotato.core.media._base.media.index import MediaTypeIndex, MediaStatusIndex, TitleIndex
+        with tempfile.TemporaryDirectory() as path:
+            database = SuperThreadSafeDatabase(path)
+            try:
+                database.create()
+                database.add_index(MediaTypeIndex(database.path, 'media_by_type'))
+                database.add_index(MediaStatusIndex(database.path, 'media_status'))
+                database.add_index(TitleIndex(database.path, 'media_title'))
+
+                doc1 = {'_t': 'media', 'type': 'movie', 'status': 'active', 'title': 'The Matrix'}
+                doc2 = {'_t': 'media', 'type': 'movie', 'status': 'done', 'title': 'Inception'}
+                database.insert(doc1)
+                database.insert(doc2)
+
+                database.reindex()
+
+                movies_by_type = list(database.get_many('media_by_type', 'movie'))
+                self.assertEqual(len(movies_by_type), 2)
+
+                active_movies = list(database.get_many('media_status', 'active'))
+                self.assertEqual(len(active_movies), 1)
+
+                titles = list(database.all('media_title'))
+                self.assertEqual(len(titles), 2)
+            finally:
+                if database.opened:
+                    database.close()
+
 
 if __name__ == '__main__':
     unittest.main()
