@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -127,6 +128,37 @@ class DatabasePython3Test(unittest.TestCase):
                 # Should read and compile legacy index without raising ImportError for izip
                 database._read_indexes()
                 self.assertIn('custom_test_index', database.indexes_names)
+            finally:
+                if database.opened:
+                    database.close()
+
+    def test_legacy_index_bucket_marshal_bytes_props_opens_cleanly(self):
+        with tempfile.TemporaryDirectory() as path:
+            database = SuperThreadSafeDatabase(path)
+            try:
+                database.create()
+                database.close()
+
+                # Simulate existing Python 2 bucket with interned string key and bytes value
+                # e.g. {'name': b'id', 'storage_class': b'IU_Storage'}
+                buck_path = os.path.join(path, 'id_buck')
+                with open(buck_path, 'r+b') as f:
+                    p2_bytes = b'{t\x04\x00\x00\x00names\x02\x00\x00\x00ids\r\x00\x00\x00storage_classs\n\x00\x00\x00IU_Storage0'
+                    f.seek(0)
+                    f.write(p2_bytes.ljust(500, b'\x00'))
+
+                # Open existing database
+                db = SuperThreadSafeDatabase(path)
+                db.open()
+                self.assertTrue(db.opened)
+                self.assertIsInstance(db.storage.name, str)
+                self.assertEqual(db.storage.name, 'id')
+
+                # Verify read/write functions properly
+                inserted = db.insert({'type': 'movie', 'title': 'Legacy Inception'})
+                doc = db.get('id', inserted['_id'])
+                self.assertEqual(doc['title'], 'Legacy Inception')
+                db.close()
             finally:
                 if database.opened:
                     database.close()

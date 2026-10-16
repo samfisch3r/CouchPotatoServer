@@ -74,6 +74,8 @@ class Index(object):
     def __init__(self,
                  db_path,
                  name):
+        if isinstance(name, bytes):
+            name = name.decode('utf-8', 'surrogateescape')
         self.name = name
         self._start_ind = 500
         self.db_path = db_path
@@ -105,21 +107,32 @@ class Index(object):
         self.buckets.seek(0)
         props = marshal.loads(self.buckets.read(self._start_ind))
         for k, v in props.items():
+            if isinstance(k, bytes):
+                k = k.decode('ascii', 'surrogateescape')
+            if isinstance(v, bytes):
+                v = v.decode('utf-8', 'surrogateescape')
             self.__dict__[k] = v
         self.buckets.seek(0, 2)
 
     def _save_params(self, in_params={}):
         self.buckets.seek(0)
         props = marshal.loads(self.buckets.read(self._start_ind))
-        props.update(in_params)
+        clean_props = {}
+        for k, v in props.items():
+            if isinstance(k, bytes):
+                k = k.decode('ascii', 'surrogateescape')
+            if isinstance(v, bytes):
+                v = v.decode('utf-8', 'surrogateescape')
+            clean_props[k] = v
+        clean_props.update(in_params)
         self.buckets.seek(0)
-        data = marshal.dumps(props)
+        data = marshal.dumps(clean_props)
         if len(data) > self._start_ind:
             raise IndexException("To big props")
         self.buckets.write(data)
         self.flush()
         self.buckets.seek(0, 2)
-        self.__dict__.update(props)
+        self.__dict__.update(clean_props)
 
     def _open_storage(self, *args, **kwargs):
         pass

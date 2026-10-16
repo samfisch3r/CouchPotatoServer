@@ -202,6 +202,8 @@ class IU_TreeBasedIndex(Index):
             os.path.join(self.db_path, self.name + "_buck"), 'r+b', buffering=0)
         self.buckets.seek(self._start_ind)
         self.root_flag = struct.unpack('<c', self.buckets.read(1))[0]
+        if isinstance(self.root_flag, bytes):
+            self.root_flag = self.root_flag.decode('ascii')
         self._fix_params()
         self._open_storage()
 
@@ -1983,15 +1985,23 @@ class IU_TreeBasedIndex(Index):
         raise NotImplementedError()
 
     def _open_storage(self):
-        s = globals()[self.storage_class]
+        storage_class = self.storage_class
+        if isinstance(storage_class, bytes):
+            storage_class = storage_class.decode('utf-8', 'surrogateescape')
+        s = globals()[storage_class]
         if not self.storage:
-            self.storage = s(self.db_path, self.name)
+            name = self.name.decode('utf-8', 'surrogateescape') if isinstance(self.name, bytes) else self.name
+            self.storage = s(self.db_path, name)
         self.storage.open()
 
     def _create_storage(self):
-        s = globals()[self.storage_class]
+        storage_class = self.storage_class
+        if isinstance(storage_class, bytes):
+            storage_class = storage_class.decode('utf-8', 'surrogateescape')
+        s = globals()[storage_class]
         if not self.storage:
-            self.storage = s(self.db_path, self.name)
+            name = self.name.decode('utf-8', 'surrogateescape') if isinstance(self.name, bytes) else self.name
+            self.storage = s(self.db_path, name)
         self.storage.create()
 
     def compact(self, node_capacity=0):

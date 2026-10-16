@@ -91,6 +91,8 @@ class IU_Storage(object):
     __version__ = __version__
 
     def __init__(self, db_path, name='main'):
+        if isinstance(name, bytes):
+            name = name.decode('utf-8', 'surrogateescape')
         self.db_path = db_path
         self.name = name
         self._header_size = 100

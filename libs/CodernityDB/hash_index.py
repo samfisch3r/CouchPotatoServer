@@ -165,15 +165,23 @@ class IU_HashIndex(Index):
         self._clear_cache()
 
     def _open_storage(self):
-        s = globals()[self.storage_class]
+        storage_class = self.storage_class
+        if isinstance(storage_class, bytes):
+            storage_class = storage_class.decode('utf-8', 'surrogateescape')
+        s = globals()[storage_class]
         if not self.storage:
-            self.storage = s(self.db_path, self.name)
+            name = self.name.decode('utf-8', 'surrogateescape') if isinstance(self.name, bytes) else self.name
+            self.storage = s(self.db_path, name)
         self.storage.open()
 
     def _create_storage(self):
-        s = globals()[self.storage_class]
+        storage_class = self.storage_class
+        if isinstance(storage_class, bytes):
+            storage_class = storage_class.decode('utf-8', 'surrogateescape')
+        s = globals()[storage_class]
         if not self.storage:
-            self.storage = s(self.db_path, self.name)
+            name = self.name.decode('utf-8', 'surrogateescape') if isinstance(self.name, bytes) else self.name
+            self.storage = s(self.db_path, name)
         self.storage.create()
 
     # def close_index(self):
