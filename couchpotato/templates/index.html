@@ -30,6 +30,18 @@
 
 		<link href="{{ icon_path }}favicon.ico" rel="icon" type="image/x-icon" />
 
+		<script type="text/javascript">
+			window.onerror = function(message, file, line) {
+				console.error('Script load error:', message, file, line);
+				try {
+					var xhr = new XMLHttpRequest();
+					xhr.open('POST', '{{ Env.get("api_base") }}logging.log', true);
+					xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+					xhr.send('data[type]=error&data[message]=' + encodeURIComponent('Script error: ' + message) + '&data[file]=' + encodeURIComponent(file) + '&data[line]=' + encodeURIComponent(line));
+				} catch(e) {}
+			};
+		</script>
+
 		{% for url in fireEvent('clientscript.get_scripts', single = True) %}
 		<script type="text/javascript" src="{{ Env.get('web_base') }}{{ url }}"></script>{% end %}
 
@@ -72,12 +84,16 @@
 					}
 				}
 
-				Quality.setup({
-					'profiles': {{ json_encode(fireEvent('profile.all', single = True)) }},
-					'qualities': {{ json_encode(fireEvent('quality.all', single = True)) }}
-				});
+				if(window.Quality && Quality.setup){
+					Quality.setup({
+						'profiles': {{ json_encode(fireEvent('profile.all', single = True)) }},
+						'qualities': {{ json_encode(fireEvent('quality.all', single = True)) }}
+					});
+				}
 
-				CategoryList.setup({{ json_encode(fireEvent('category.all', single = True)) }});
+				if(window.CategoryList && CategoryList.setup){
+					CategoryList.setup({{ json_encode(fireEvent('category.all', single = True)) }});
+				}
 
 				App.setup({
 					'dev': dev,

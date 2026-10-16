@@ -38,7 +38,7 @@ class ClientScript(Plugin):
             updates_paths = []
             for rel_path in self.paths.get(static_type):
                 file_path = os.path.join(Env.get('app_dir'), 'couchpotato', 'static', rel_path)
-                core_url = 'static/%s?%d' % (rel_path, tryInt(os.path.getmtime(file_path)))
+                core_url = 'static/%s?v=%s_%d' % (rel_path, Env.get('version', 'v2'), tryInt(os.path.getmtime(file_path)))
 
                 updates_paths.append(core_url)
 

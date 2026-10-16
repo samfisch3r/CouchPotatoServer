@@ -352,7 +352,10 @@ def runCouchPotato(options, base_path, args, data_dir = None, log_dir = None, En
                     except: log.info2('Tried to bind to IPV6 but failed')
 
             loop.start()
-            server.close_all_connections()
+            try:
+                loop.run_sync(server.close_all_connections)
+            except Exception:
+                pass
             server.stop()
             loop.close(all_fds = True)
         except Exception as e:
