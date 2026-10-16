@@ -266,7 +266,12 @@ class IU_HashIndex(Index):
         :param start: position to start from
         """
         location = start
+        visited = set()
         while True:
+            if location in visited:
+                raise ElemNotFound(
+                    "Not found")
+            visited.add(location)
             self.buckets.seek(location)
             data = self.buckets.read(self.entry_line_size)
             # todo, maybe partial read there...
@@ -296,7 +301,12 @@ class IU_HashIndex(Index):
         :param start: position to start from
         """
         location = start
+        visited = set()
         while True:
+            if location in visited:
+                raise DocIdNotFound(
+                    "Doc_id '%s' for '%s' not found" % (doc_id, key))
+            visited.add(location)
             self.buckets.seek(location)
             data = self.buckets.read(self.entry_line_size)
             try:
@@ -323,7 +333,11 @@ class IU_HashIndex(Index):
         :param start: position to start from
         """
         location = start
+        visited = set()
         while True:
+            if location in visited:
+                return self.buckets.tell() - self.entry_line_size, doc_id, l_key, start, size, 'd', 0
+            visited.add(location)
             self.buckets.seek(location)
             data = self.buckets.read(self.entry_line_size)
             # todo, maybe partial read there...
@@ -625,7 +639,11 @@ class IU_UniqueHashIndex(IU_HashIndex):
         :param start: position to start from
         """
         location = start
+        visited = set()
         while True:
+            if location in visited:
+                return self.buckets.tell() - self.entry_line_size, l_key, rev, start, size, 'd', 0
+            visited.add(location)
             self.buckets.seek(location)
             data = self.buckets.read(self.entry_line_size)
             # todo, maybe partial read there...
@@ -648,7 +666,11 @@ class IU_UniqueHashIndex(IU_HashIndex):
         :param start: position to start from
         """
         location = start
+        visited = set()
         while True:
+            if location in visited:
+                raise ElemNotFound("Location '%s' not found" % key)
+            visited.add(location)
             self.buckets.seek(location)
             data = self.buckets.read(self.entry_line_size)
             # todo, maybe partial read there...

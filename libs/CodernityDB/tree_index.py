@@ -298,6 +298,7 @@ class IU_TreeBasedIndex(Index):
         curr_key_index = element_index + 1
         curr_leaf_start = leaf_start
         next_leaf = self._read_leaf_neighbours(leaf_start)[1]
+        visited = set()
         while True:
             if curr_key_index < nr_of_elements:
                 curr_key, curr_doc_id, curr_start, curr_size,\
@@ -311,18 +312,19 @@ class IU_TreeBasedIndex(Index):
                 else:
                     curr_key_index = curr_key_index + 1
             else:  # there are no more elements in current leaf, must jump to next
-                if not next_leaf:  # end of leaf linked list
+                if not next_leaf or next_leaf in visited:  # end of leaf linked list or cycle
 #                    should't happen, crashes earlier on id index
                     raise DocIdNotFound
-                else:
-                    curr_leaf_start = next_leaf
-                    nr_of_elements, prev_leaf, next_leaf = self._read_leaf_nr_of_elements_and_neighbours(next_leaf)
-                    curr_key_index = 0
+                visited.add(next_leaf)
+                curr_leaf_start = next_leaf
+                nr_of_elements, prev_leaf, next_leaf = self._read_leaf_nr_of_elements_and_neighbours(next_leaf)
+                curr_key_index = 0
 
     def _find_existing(self, key, element_index, leaf_start, nr_of_elements):
         curr_key_index = element_index + 1
         curr_leaf_start = leaf_start
         next_leaf = self._read_leaf_neighbours(leaf_start)[1]
+        visited = set()
         while True:
             if curr_key_index < nr_of_elements:
                 curr_key, curr_doc_id, curr_start, curr_size,\
@@ -335,12 +337,12 @@ class IU_TreeBasedIndex(Index):
                 else:
                     curr_key_index = curr_key_index + 1
             else:  # there are no more elements in current leaf, must jump to next
-                if not next_leaf:  # end of leaf linked list
+                if not next_leaf or next_leaf in visited:  # end of leaf linked list or cycle
                     raise ElemNotFound
-                else:
-                    curr_leaf_start = next_leaf
-                    nr_of_elements, prev_leaf, next_leaf = self._read_leaf_nr_of_elements_and_neighbours(next_leaf)
-                    curr_key_index = 0
+                visited.add(next_leaf)
+                curr_leaf_start = next_leaf
+                nr_of_elements, prev_leaf, next_leaf = self._read_leaf_nr_of_elements_and_neighbours(next_leaf)
+                curr_key_index = 0
 
     def _update_element(self, leaf_start, key_index, new_data):
         self.buckets.seek(self._calculate_key_position(leaf_start, key_index, 'l')

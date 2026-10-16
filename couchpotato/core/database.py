@@ -280,7 +280,9 @@ class Database(object):
             if has_docs:
                 log.info('Running one-time Python 3 database reindex to rebuild secondary indexes...')
                 try:
-                    db.reindex()
+                    for index in db.indexes[1:]:
+                        log.info('Reindexing index: %s...', index.name)
+                        db.reindex_index(index)
                     log.info('One-time Python 3 database reindex completed successfully!')
                     Env.prop('py3_db_reindexed_v2', value = True)
                 except Exception:
