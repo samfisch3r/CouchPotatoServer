@@ -30,17 +30,17 @@ class IMDBBase(Automation, RSS):
         'theater': {
             'order': 1,
             'name': 'IMDB - Movies in Theaters',
-            'url': 'http://www.imdb.com/movies-in-theaters/',
+            'url': 'https://www.imdb.com/chart/in-theaters/',
         },
         'boxoffice': {
             'order': 2,
             'name': 'IMDB - Box Office',
-            'url': 'http://www.imdb.com/boxoffice/',
+            'url': 'https://www.imdb.com/chart/boxoffice/',
         },
         'top250': {
             'order': 3,
             'name': 'IMDB - Top 250 Movies',
-            'url': 'http://www.imdb.com/chart/top',
+            'url': 'https://www.imdb.com/chart/top/',
         },
     }
 
@@ -59,7 +59,7 @@ class IMDBBase(Automation, RSS):
                 split = splitString(html, split_on = "<div id=\"main\">")
 
                 if len(split) < 2:
-                    log.error('Failed parsing IMDB page "%s", unexpected html.', url)
+                    log.warning('Failed parsing IMDB page "%s", unexpected html (IMDb anti-bot protection or layout change).', url)
                     return []
 
                 html = BeautifulSoup(split[1])
@@ -73,7 +73,7 @@ class IMDBBase(Automation, RSS):
                         html = ''.join([str(x) for x in html])
                         break
             except:
-                log.error('Failed parsing IMDB page "%s": %s', (url, traceback.format_exc()))
+                log.warning('Failed parsing IMDB page "%s": %s', (url, traceback.format_exc()))
 
         html = ss(html)
         imdbs = getImdb(html, multiple = True) if html else []
