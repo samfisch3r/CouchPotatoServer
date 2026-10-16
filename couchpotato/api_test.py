@@ -65,5 +65,39 @@ class ApiHandlerTest(AsyncHTTPTestCase):
         self.assertIn(b'"ready": true', response.body)
 
 
+class RoutePrecedenceTest(AsyncHTTPTestCase):
+
+    def get_app(self):
+        from tornado.web import StaticFileHandler
+        from couchpotato import WebHandler, addView
+        import os
+
+        static_dir = os.path.join(str(repository_root), 'couchpotato', 'static', 'scripts')
+        addView('testview', lambda handler: 'test-view-content')
+
+        app = Application()
+        # Static registered first
+        app.add_handlers(".*$", [
+            (r'/static/scripts/(.*)', StaticFileHandler, {'path': static_dir}),
+        ])
+        # WebHandler registered last
+        app.add_handlers(".*$", [
+            (r'/(.*)', WebHandler),
+        ])
+        return app
+
+    def test_static_file_not_intercepted_by_webhandler(self):
+        response = self.fetch('/static/scripts/combined.vendor.min.js')
+        self.assertEqual(response.code, 200)
+        # Verify it served actual JS file and not HTML / redirect
+        self.assertTrue(len(response.body) > 1000)
+
+    def test_webhandler_serves_registered_views(self):
+        response = self.fetch('/testview')
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response.body, b'test-view-content')
+
+
 if __name__ == '__main__':
     unittest.main()
+

@@ -278,24 +278,6 @@ def runCouchPotato(options, base_path, args, data_dir = None, log_dir = None, En
     )
     Env.set('app', application)
 
-    # Request handlers
-    application.add_handlers(".*$", [
-        (r'%snonblock/(.*)(/?)' % api_base, NonBlockHandler),
-
-        # API handlers
-        (r'%s(.*)(/?)' % api_base, ApiHandler),  # Main API handler
-        (r'%sgetkey(/?)' % web_base, KeyHandler),  # Get API key
-        (r'%s' % api_base, RedirectHandler, {"url": web_base + 'docs/'}),  # API docs
-
-        # Login handlers
-        (r'%slogin(/?)' % web_base, LoginHandler),
-        (r'%slogout(/?)' % web_base, LogoutHandler),
-
-        # Catch all webhandlers
-        (r'%s(.*)(/?)' % web_base, WebHandler),
-        (r'(.*)', WebHandler),
-    ])
-
     # Static paths
     static_path = '%sstatic/' % web_base
     for dir_name in ['fonts', 'images', 'scripts', 'style']:
@@ -304,10 +286,26 @@ def runCouchPotato(options, base_path, args, data_dir = None, log_dir = None, En
         ])
     Env.set('static_path', static_path)
 
+    # Specific request handlers
+    application.add_handlers(".*$", [
+        (r'%snonblock/(.*)(/?)' % api_base, NonBlockHandler),
+        (r'%sgetkey(/?)' % web_base, KeyHandler),  # Get API key
+        (r'%s' % api_base, RedirectHandler, {"url": web_base + 'docs/'}),  # API docs
+        (r'%slogin(/?)' % web_base, LoginHandler),
+        (r'%slogout(/?)' % web_base, LogoutHandler),
+    ])
+
     # Load configs & plugins
     loader = Env.get('loader')
     loader.preload(root = sp(base_path))
     loader.run()
+
+    # Generic API & catch-all web handlers (registered after plugins so plugin static routes have priority)
+    application.add_handlers(".*$", [
+        (r'%s(.*)(/?)' % api_base, ApiHandler),  # Main API handler
+        (r'%s(.*)(/?)' % web_base, WebHandler),
+        (r'(.*)', WebHandler),
+    ])
 
     # Fill database with needed stuff
     fireEvent('database.setup')
