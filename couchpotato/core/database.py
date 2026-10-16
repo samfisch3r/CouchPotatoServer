@@ -268,7 +268,7 @@ class Database(object):
                 return
 
         # Python 3 migration: ensure all secondary indexes are synced from primary id store
-        if not Env.prop('py3_db_reindexed', default = False):
+        if not Env.prop('py3_db_reindexed_v2', default = False):
             has_docs = False
             try:
                 for _ in db.all('id', limit = 1):
@@ -282,13 +282,15 @@ class Database(object):
                 try:
                     db.reindex()
                     log.info('One-time Python 3 database reindex completed successfully!')
+                    Env.prop('py3_db_reindexed_v2', value = True)
                 except Exception:
                     log.error('Failed one-time Python 3 database reindex: %s', traceback.format_exc())
-            Env.prop('py3_db_reindexed', value = True)
+            else:
+                Env.prop('py3_db_reindexed_v2', value = True)
         else:
             # Secondary check: if documents exist in id but media_by_type is empty, reindex
             try:
-                has_media_in_id = any(doc.get('_t') == 'media' for doc in db.all('id', limit = 100))
+                has_media_in_id = any(doc.get('_t') == 'media' for doc in db.all('id', limit = 200))
                 has_media_in_index = any(True for _ in db.get_many('media_by_type', 'movie', limit = 1))
                 if has_media_in_id and not has_media_in_index:
                     log.info('Media records found in document store but missing in media_by_type index. Reindexing...')

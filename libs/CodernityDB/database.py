@@ -878,7 +878,7 @@ you should check index code.""" % (index.name, ex), RuntimeWarning)
                 data['_id'])  # it's cached so it's ok
             if status != 'd' and status != 'u':
                 self._single_insert_index(index, data, doc_id)
-        except (RecordNotFound, RecordDeleted, KeyError):
+        except (RecordNotFound, RecordDeleted, KeyError, ElemNotFound, DocIdNotFound, IndexException):
             pass
 
     def reindex_index(self, index):

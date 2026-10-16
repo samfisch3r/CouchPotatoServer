@@ -247,6 +247,41 @@ class DatabasePython3Test(unittest.TestCase):
                 if database.opened:
                     database.close()
 
+    def test_database_reindex_handles_elem_not_found_in_id_index(self):
+        from CodernityDB.index import ElemNotFound
+        from couchpotato.core.media._base.media.index import MediaTypeIndex
+        with tempfile.TemporaryDirectory() as path:
+            database = SuperThreadSafeDatabase(path)
+            try:
+                database.create()
+                database.add_index(MediaTypeIndex(database.path, 'media_by_type'))
+
+                doc1 = {'_t': 'media', 'type': 'movie', 'title': 'Movie 1'}
+                doc2 = {'_t': 'media', 'type': 'movie', 'title': 'Movie 2'}
+                database.insert(doc1)
+                database.insert(doc2)
+
+                orig_id_get = database.id_ind.get
+                call_count = [0]
+
+                def mock_id_get(key):
+                    call_count[0] += 1
+                    # Raise ElemNotFound on the first lookup to simulate an unlinked/orphaned bucket entry
+                    if call_count[0] == 1:
+                        raise ElemNotFound(f"Location '{key}' not found")
+                    return orig_id_get(key)
+
+                database.id_ind.get = mock_id_get
+
+                # Reindex must not raise ElemNotFound, but skip the orphaned entry cleanly
+                database.reindex()
+
+                movies = list(database.get_many('media_by_type', 'movie'))
+                self.assertEqual(len(movies), 1)
+            finally:
+                if database.opened:
+                    database.close()
+
 
 if __name__ == '__main__':
     unittest.main()
