@@ -1,5 +1,4 @@
 from uuid import uuid4
-import os
 import signal
 import time
 import traceback

@@ -1,11 +1,9 @@
 import os
 import traceback
-import time
 
 from couchpotato import CPLog
 from couchpotato.api import addApiView
-from couchpotato.core.event import addEvent
-from couchpotato.core.helpers.encoding import sp, ss, toUnicode
+from couchpotato.core.helpers.encoding import sp, toUnicode
 from couchpotato.core.helpers.variable import getUserDir
 from couchpotato.core.plugins.base import Plugin
 

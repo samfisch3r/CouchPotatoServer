@@ -1,11 +1,6 @@
-import base64
-import time
-
-from couchpotato.core.event import addEvent, fireEvent
-from couchpotato.core.helpers.encoding import tryUrlencode, ss
+from couchpotato.core.event import addEvent
 from couchpotato.core.logger import CPLog
 from couchpotato.core.media.movie.providers.base import MovieProvider
-from couchpotato.environment import Env
 
 
 log = CPLog(__name__)

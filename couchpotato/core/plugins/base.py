@@ -1,7 +1,7 @@
+import os
 import threading
 from urllib.parse import quote, urlparse
 from urllib.request import getproxies
-import os.path
 import time
 import traceback
 

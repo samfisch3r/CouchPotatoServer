@@ -2,7 +2,7 @@ from logging import handlers
 from uuid import uuid4
 import locale
 import logging
-import os.path
+import os
 import sys
 import time
 import traceback
@@ -361,21 +361,18 @@ def runCouchPotato(options, base_path, args, data_dir = None, log_dir = None, En
             loop.close(all_fds = True)
         except Exception as e:
             log.error('Failed starting: %s', traceback.format_exc())
-            try:
-                nr, msg = e
-                if nr == 48:
-                    log.info('Port (%s) needed for CouchPotato is already in use, try %s more time after few seconds', (config.get('port'), restart_tries))
-                    time.sleep(1)
-                    restart_tries -= 1
+            nr = getattr(e, 'errno', None)
+            if nr is None and len(getattr(e, 'args', ())) > 0 and isinstance(e.args[0], int):
+                nr = e.args[0]
+            if nr in (48, 98, 10048):
+                log.info('Port (%s) needed for CouchPotato is already in use, try %s more time after few seconds', (config.get('port'), restart_tries))
+                time.sleep(1)
+                restart_tries -= 1
 
-                    if restart_tries > 0:
-                        continue
-                    else:
-                        return
-            except ValueError:
-                return
-            except:
-                pass
+                if restart_tries > 0:
+                    continue
+                else:
+                    return
 
             raise
 

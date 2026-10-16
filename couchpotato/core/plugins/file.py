@@ -1,4 +1,4 @@
-import os.path
+import os
 import traceback
 
 from couchpotato import get_db

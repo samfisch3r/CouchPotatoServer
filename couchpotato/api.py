@@ -1,10 +1,10 @@
 from functools import wraps
 from threading import Thread
+from urllib.parse import unquote
 import asyncio
 import json
 import threading
 import traceback
-import urllib.parse
 
 from couchpotato.core.helpers.request import getParams
 from couchpotato.core.logger import CPLog
@@ -109,7 +109,7 @@ class ApiHandler(RequestHandler):
 
             kwargs = {}
             for x in self.request.arguments:
-                kwargs[x] = urllib.parse.unquote(self.get_argument(x))
+                kwargs[x] = unquote(self.get_argument(x))
 
             # Split array arguments
             kwargs = getParams(kwargs)

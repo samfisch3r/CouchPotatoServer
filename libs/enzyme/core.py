@@ -22,7 +22,10 @@ import re
 import logging
 from . import fourcc
 from . import language
-from .strutils import str_to_unicode, unicode_to_str
+from .strutils import str_to_unicode, unicode_to_str, text_type, binary_type
+
+unicode = text_type
+
 
 UNPRINTABLE_KEYS = ['thumbnail', 'url', 'codec_private']
 MEDIACORE = ['title', 'caption', 'comment', 'size', 'type', 'subtype', 'timestamp',
@@ -88,7 +91,7 @@ class Media(object):
         lists = []
         for key in self._keys:
             value = getattr(self, key, None)
-            if value == None or key == 'url':
+            if value is None or key == 'url':
                 continue
             if isinstance(value, list):
                 if not value:
@@ -149,7 +152,7 @@ class Media(object):
         return result
 
     def __str__(self):
-        return str(self)
+        return self.__unicode__()
 
     def __repr__(self):
         if hasattr(self, 'url'):
@@ -180,7 +183,7 @@ class Media(object):
         """
         if value is None and getattr(self, key, None) is None:
             return
-        if isinstance(value, str):
+        if isinstance(value, (text_type, binary_type)):
             value = str_to_unicode(value)
         setattr(self, key, value)
         if not key in self._keys:
@@ -204,12 +207,13 @@ class Media(object):
             if value is None:
                 continue
             if key == 'image':
-                if isinstance(value, unicode):
+                if isinstance(value, text_type):
                     setattr(self, key, unicode_to_str(value))
                 continue
-            if isinstance(value, str):
+            if isinstance(value, binary_type):
                 setattr(self, key, str_to_unicode(value))
-            if isinstance(value, unicode):
+                value = getattr(self, key)
+            if isinstance(value, text_type):
                 setattr(self, key, value.strip().rstrip().replace(u'\0', u''))
             if isinstance(value, list) and value and isinstance(value[0], Media):
                 for submenu in value:
@@ -223,12 +227,14 @@ class Media(object):
                     continue
                 value = table.get(tag, None)
                 if value is not None:
-                    if not isinstance(value, (str, unicode)):
+                    if not isinstance(value, (text_type, binary_type)):
                         value = str_to_unicode(str(value))
-                    elif isinstance(value, str):
+                    elif isinstance(value, binary_type):
                         value = str_to_unicode(value)
-                    value = value.strip().rstrip().replace(u'\0', u'')
+                    if isinstance(value, text_type):
+                        value = value.strip().rstrip().replace(u'\0', u'')
                     setattr(self, attr, value)
+
 
         if 'fourcc' in self._keys and 'codec' in self._keys and self.codec is not None:
             # Codec may be a fourcc, in which case we resolve it to its actual

@@ -562,31 +562,12 @@ class Scanner(Plugin):
     def getSubtitleLanguage(self, group):
         detected_languages = {}
 
-        # Subliminal scanner
-        paths = None
-        try:
-            paths = group['files']['movie']
-            scan_result = []
-            for p in paths:
-                if not group['is_dvd']:
-                    video = Video.from_path(toUnicode(sp(p)))
-                    video_result = [(video, video.scan())]
-                    scan_result.extend(video_result)
-
-            for video, detected_subtitles in scan_result:
-                for s in detected_subtitles:
-                    if s.language and s.path not in paths:
-                        detected_languages[s.path] = [s.language]
-        except:
-            log.debug('Failed parsing subtitle languages for %s: %s', (paths, traceback.format_exc()))
-
         # IDX
         for extra in group['files']['subtitle_extra']:
             try:
                 if os.path.isfile(extra):
-                    output = open(extra, 'r')
-                    txt = output.read()
-                    output.close()
+                    with open(extra, 'r', encoding='utf-8', errors='ignore') as output:
+                        txt = output.read()
 
                     idx_langs = re.findall(r'\nid: (\w+)', txt)
 

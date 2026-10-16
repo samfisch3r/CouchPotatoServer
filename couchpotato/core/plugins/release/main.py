@@ -1,4 +1,3 @@
-from inspect import ismethod, isfunction
 import os
 import time
 import traceback

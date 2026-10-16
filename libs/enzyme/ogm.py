@@ -62,14 +62,14 @@ class Ogm(core.AVContainer):
     table_mapping = { 'VORBISCOMMENT' : VORBISCOMMENT }
 
     def __init__(self, file):
-        core.AVContainer.__init__(self)
+        super(Ogm, self).__init__()
         self.samplerate = 1
         self.all_streams = []           # used to add meta data to streams
         self.all_header = []
 
         for i in range(MAXITERATIONS):
             granule, nextlen = self._parseOGGS(file)
-            if granule == None:
+            if granule is None:
                 if i == 0:
                     # oops, bad file
                     raise ParseError()
@@ -79,19 +79,24 @@ class Ogm(core.AVContainer):
                 break
 
         # seek to the end of the stream, to avoid scanning the whole file
-        if (os.stat(file.name)[stat.ST_SIZE] > 50000):
-            file.seek(os.stat(file.name)[stat.ST_SIZE] - 49000)
+        try:
+            file_size = os.path.getsize(file.name)
+        except (AttributeError, OSError):
+            file_size = 0
+
+        if file_size > 50000:
+            file.seek(file_size - 49000)
 
         # read the rest of the file into a buffer
         h = file.read()
 
         # find last OggS to get length info
         if len(h) > 200:
-            idx = h.find('OggS')
+            idx = h.find('OggS') if isinstance(h, str) else h.find(b'OggS')
             pos = -49000 + idx
-            if idx:
-                file.seek(os.stat(file.name)[stat.ST_SIZE] + pos)
-            while 1:
+            if idx != -1:
+                file.seek(file_size + pos)
+            while True:
                 granule, nextlen = self._parseOGGS(file)
                 if not nextlen:
                     break
@@ -102,21 +107,21 @@ class Ogm(core.AVContainer):
 
                 # get meta info
                 for key in self.all_streams[i].keys():
-                    if self.all_header[i].has_key(key):
+                    if key in self.all_header[i]:
                         self.all_streams[i][key] = self.all_header[i][key]
                         del self.all_header[i][key]
-                    if self.all_header[i].has_key(key.upper()):
+                    if key.upper() in self.all_header[i]:
                         asi = self.all_header[i][key.upper()]
                         self.all_streams[i][key] = asi
                         del self.all_header[i][key.upper()]
 
                 # Chapter parser
-                if self.all_header[i].has_key('CHAPTER01') and \
+                if 'CHAPTER01' in self.all_header[i] and \
                        not self.chapters:
-                    while 1:
+                    while True:
                         s = 'CHAPTER%02d' % (len(self.chapters) + 1)
-                        if self.all_header[i].has_key(s) and \
-                               self.all_header[i].has_key(s + 'NAME'):
+                        if s in self.all_header[i] and \
+                               (s + 'NAME') in self.all_header[i]:
                             pos = self.all_header[i][s]
                             try:
                                 pos = int(pos)

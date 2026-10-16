@@ -18,37 +18,56 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with enzyme.  If not, see <http://www.gnu.org/licenses/>.
-__all__ = ['ENCODING', 'str_to_unicode', 'unicode_to_str']
+__all__ = ['ENCODING', 'str_to_unicode', 'unicode_to_str', 'text_type', 'binary_type']
 
 import locale
+import sys
+
+PY3 = sys.version_info[0] >= 3
+
+if PY3:
+    text_type = str
+    binary_type = bytes
+else:
+    text_type = unicode
+    binary_type = str
 
 # find the correct encoding
 try:
-    ENCODING = locale.getdefaultlocale()[1]
-    ''.encode(ENCODING)
-except (UnicodeError, TypeError):
+    if hasattr(locale, 'getpreferredencoding'):
+        ENCODING = locale.getpreferredencoding(False)
+    else:
+        ENCODING = locale.getdefaultlocale()[1]
+    if ENCODING:
+        ''.encode(ENCODING)
+    else:
+        ENCODING = 'utf-8'
+except (UnicodeError, TypeError, AttributeError):
     ENCODING = 'latin-1'
 
 
 def str_to_unicode(s, encoding=None):
     """
-    Attempts to convert a string of unknown character set to a unicode
-    string.  First it tries to decode the string based on the locale's
+    Attempts to convert a byte string of unknown character set to a unicode
+    string. First it tries to decode the string based on the locale's
     preferred encoding, and if that fails, fall back to UTF-8 and then
-    latin-1.  If all fails, it will force encoding to the preferred
+    latin-1. If all fails, it will force encoding to the preferred
     charset, replacing unknown characters. If the given object is no
     string, this function will return the given object.
     """
-    if not type(s) == str:
+    if isinstance(s, text_type):
+        return s
+
+    if not isinstance(s, binary_type):
         return s
 
     if not encoding:
-        encoding = ENCODING
+        encoding = ENCODING or 'utf-8'
 
     for c in [encoding, "utf-8", "latin-1"]:
         try:
             return s.decode(c)
-        except UnicodeDecodeError:
+        except (UnicodeDecodeError, LookupError):
             pass
 
     return s.decode(encoding, "replace")
@@ -57,22 +76,26 @@ def str_to_unicode(s, encoding=None):
 def unicode_to_str(s, encoding=None):
     """
     Attempts to convert a unicode string of unknown character set to a
-    string.  First it tries to encode the string based on the locale's
+    byte string. First it tries to encode the string based on the locale's
     preferred encoding, and if that fails, fall back to UTF-8 and then
-    latin-1.  If all fails, it will force encoding to the preferred
+    latin-1. If all fails, it will force encoding to the preferred
     charset, replacing unknown characters. If the given object is no
     unicode string, this function will return the given object.
     """
-    if not type(s) == unicode:
+    if isinstance(s, binary_type):
+        return s
+
+    if not isinstance(s, text_type):
         return s
 
     if not encoding:
-        encoding = ENCODING
+        encoding = ENCODING or 'utf-8'
 
     for c in [encoding, "utf-8", "latin-1"]:
         try:
             return s.encode(c)
-        except UnicodeDecodeError:
+        except (UnicodeEncodeError, LookupError):
             pass
 
     return s.encode(encoding, "replace")
+

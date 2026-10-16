@@ -224,7 +224,7 @@ class MPEG(core.AVContainer):
         file.seek(0)
         buffer = ''
         count = 0
-        while 1:
+        while True:
             if len(buffer) < 1000:
                 count += 1
                 if count > 1000:
@@ -309,7 +309,7 @@ class MPEG(core.AVContainer):
 
         highbit = (ord(buffer[0]) & 0x20) >> 5
 
-        low4Bytes = ((long(ord(buffer[0])) & 0x18) >> 3) << 30
+        low4Bytes = (((ord(buffer[0]) & 0x18) >> 3) << 30)
         low4Bytes |= (ord(buffer[0]) & 0x03) << 28
         low4Bytes |= ord(buffer[1]) << 20
         low4Bytes |= (ord(buffer[2]) & 0xF8) << 12
@@ -320,7 +320,7 @@ class MPEG(core.AVContainer):
         sys_clock_ref = (ord(buffer[4]) & 0x3) << 7
         sys_clock_ref |= (ord(buffer[5]) >> 1)
 
-        return (long(highbit * (1 << 16) * (1 << 16)) + low4Bytes) / 90000
+        return (int(highbit * (1 << 16) * (1 << 16)) + low4Bytes) / 90000
 
 
     def ReadSCRMpeg1(self, buffer):
@@ -332,13 +332,13 @@ class MPEG(core.AVContainer):
 
         highbit = (ord(buffer[0]) >> 3) & 0x01
 
-        low4Bytes = ((long(ord(buffer[0])) >> 1) & 0x03) << 30
-        low4Bytes |= ord(buffer[1]) << 22;
-        low4Bytes |= (ord(buffer[2]) >> 1) << 15;
-        low4Bytes |= ord(buffer[3]) << 7;
-        low4Bytes |= ord(buffer[4]) >> 1;
+        low4Bytes = (((ord(buffer[0]) >> 1) & 0x03) << 30)
+        low4Bytes |= ord(buffer[1]) << 22
+        low4Bytes |= (ord(buffer[2]) >> 1) << 15
+        low4Bytes |= ord(buffer[3]) << 7
+        low4Bytes |= ord(buffer[4]) >> 1
 
-        return (long(highbit) * (1 << 16) * (1 << 16) + low4Bytes) / 90000;
+        return (int(highbit) * (1 << 16) * (1 << 16) + low4Bytes) / 90000
 
 
     def ReadPTS(self, buffer):
@@ -348,7 +348,7 @@ class MPEG(core.AVContainer):
         high = ((ord(buffer[0]) & 0xF) >> 1)
         med = (ord(buffer[1]) << 7) + (ord(buffer[2]) >> 1)
         low = (ord(buffer[3]) << 7) + (ord(buffer[4]) >> 1)
-        return ((long(high) << 30) + (med << 15) + low) / 90000
+        return ((int(high) << 30) + (med << 15) + low) / 90000
 
 
     def ReadHeader(self, buffer, offset):
@@ -475,7 +475,7 @@ class MPEG(core.AVContainer):
             new_offset = self.ReadHeader(buffer, offset)
 
             # header scanning detected error, this is no mpeg
-            if new_offset == None:
+            if new_offset is None:
                 return 0
 
             if new_offset:
@@ -609,7 +609,7 @@ class MPEG(core.AVContainer):
             pos, timestamp = self.ReadPESHeader(offset, buffer[offset:])
             if not pos:
                 return 0
-            if timestamp != None and not hasattr(self, 'start'):
+            if timestamp is not None and not hasattr(self, 'start'):
                 self.get_time = self.ReadPTS
                 bpos = buffer[offset + timestamp:offset + timestamp + 5]
                 self.start = self.get_time(bpos)
@@ -653,7 +653,7 @@ class MPEG(core.AVContainer):
         ackcount = 0
         while offset + 1000 < len(buffer):
             pos, timestamp = self.ReadPESHeader(offset, buffer[offset:])
-            if timestamp != None and retpos == -1:
+            if timestamp is not None and retpos == -1:
                 retpos = offset + timestamp
             if pos == 0:
                 # Oops, that was a mpeg header, no PES header
@@ -829,19 +829,18 @@ class MPEG(core.AVContainer):
         if length < self.__sample_size__:
             return
 
-        file = open(self.filename)
-        file.seek(length - self.__sample_size__)
-        buffer = file.read(self.__sample_size__)
+        with open(self.filename, 'rb') as file:
+            file.seek(length - self.__sample_size__)
+            buffer = file.read(self.__sample_size__)
 
-        end = None
-        while 1:
-            pos = self.__search__(buffer)
-            if pos == None:
-                break
-            end = self.get_time(buffer[pos:]) or end
-            buffer = buffer[pos + 100:]
+            end = None
+            while True:
+                pos = self.__search__(buffer)
+                if pos is None:
+                    break
+                end = self.get_time(buffer[pos:]) or end
+                buffer = buffer[pos + 100:]
 
-        file.close()
         return end
 
 
@@ -850,10 +849,10 @@ class MPEG(core.AVContainer):
         get the length in seconds, return -1 if this is not possible
         """
         end = self.get_endpos()
-        if end == None or self.start == None:
+        if end is None or self.start is None:
             return None
         if self.start > end:
-            return int(((long(1) << 33) - 1) / 90000) - self.start + end
+            return int(((1 << 33) - 1) / 90000) - self.start + end
         return end - self.start
 
 
@@ -865,25 +864,24 @@ class MPEG(core.AVContainer):
         if not hasattr(self, 'filename') or not hasattr(self, 'start'):
             return 0
 
-        file = open(self.filename)
-        seek_to = 0
+        with open(self.filename, 'rb') as file:
+            seek_to = 0
 
-        while 1:
-            file.seek(self.__seek_size__, 1)
-            buffer = file.read(self.__sample_size__)
-            if len(buffer) < 10000:
-                break
-            pos = self.__search__(buffer)
-            if pos != None:
-                # found something
-                nt = self.get_time(buffer[pos:])
-                if nt is not None and nt >= end_time:
-                    # too much, break
+            while True:
+                file.seek(self.__seek_size__, 1)
+                buffer = file.read(self.__sample_size__)
+                if len(buffer) < 10000:
                     break
-            # that wasn't enough
-            seek_to = file.tell()
+                pos = self.__search__(buffer)
+                if pos is not None:
+                    # found something
+                    nt = self.get_time(buffer[pos:])
+                    if nt is not None and nt >= end_time:
+                        # too much, break
+                        break
+                # that wasn't enough
+                seek_to = file.tell()
 
-        file.close()
         return seek_to
 
 
@@ -894,19 +892,18 @@ class MPEG(core.AVContainer):
         if not hasattr(self, 'filename') or not hasattr(self, 'start'):
             return 0
 
-        file = open(self.filename)
-        log.debug(u'scanning file...')
-        while 1:
-            file.seek(self.__seek_size__ * 10, 1)
-            buffer = file.read(self.__sample_size__)
-            if len(buffer) < 10000:
-                break
-            pos = self.__search__(buffer)
-            if pos == None:
-                continue
-            log.debug(u'buffer position: %r' % self.get_time(buffer[pos:]))
+        with open(self.filename, 'rb') as file:
+            log.debug(u'scanning file...')
+            while True:
+                file.seek(self.__seek_size__ * 10, 1)
+                buffer = file.read(self.__sample_size__)
+                if len(buffer) < 10000:
+                    break
+                pos = self.__search__(buffer)
+                if pos is None:
+                    continue
+                log.debug(u'buffer position: %r' % self.get_time(buffer[pos:]))
 
-        file.close()
         log.debug(u'done scanning file')
 
 
