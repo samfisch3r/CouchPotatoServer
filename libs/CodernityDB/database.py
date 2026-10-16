@@ -17,7 +17,22 @@
 
 import os
 import io
+import itertools
+import sys
+import pickle
 from inspect import getsource
+
+# Python 2 -> 3 compatibility shims for legacy generated index scripts in existing databases
+if not hasattr(itertools, 'izip'):
+    itertools.izip = zip
+if not hasattr(itertools, 'imap'):
+    itertools.imap = map
+if not hasattr(itertools, 'ifilter'):
+    itertools.ifilter = filter
+if not hasattr(itertools, 'ifilterfalse'):
+    itertools.ifilterfalse = getattr(itertools, 'filterfalse', None)
+if 'cPickle' not in sys.modules:
+    sys.modules['cPickle'] = pickle
 
 # for custom indexes
 from CodernityDB.storage import Storage, IU_Storage
@@ -201,16 +216,16 @@ class Database(object):
             name = f.readline()[2:].strip()
             _class = f.readline()[2:].strip()
             code = f.read()
+
         try:
             obj = compile(code, '<Index: %s' % os.path.join(p, ind), 'exec')
             exec(obj, globals())
             ind_obj = globals()[_class](self.path, name, **ind_kwargs)
             ind_obj._order = int(ind[:2])
-        except:
+        except Exception as exc:
             ind_path = os.path.join(p, ind)
             os.rename(ind_path, ind_path + '_broken')  # rename it instead of removing
-#            os.unlink(os.path.join(p, ind))
-            warnings.warn("Fatal error in index, saved as %s" % (ind_path + '_broken', ))
+            warnings.warn("Fatal error in index, saved as %s: %s" % (ind_path + '_broken', exc))
             raise
         else:
             return ind_obj
@@ -497,9 +512,29 @@ class Database(object):
         Read all known indexes from ``_indexes``
         """
         p = os.path.join(self.path, '_indexes')
-        for ind in os.listdir(p):
-            if ind.endswith('.py'):
+        if not os.path.exists(p):
+            return
+
+        # Automatically recover any index file renamed to _broken by a previous run
+        for f in os.listdir(p):
+            if f.endswith('.py_broken'):
+                orig = f[:-7]  # strip '_broken'
+                orig_path = os.path.join(p, orig)
+                if not os.path.exists(orig_path):
+                    try:
+                        os.rename(os.path.join(p, f), orig_path)
+                    except OSError:
+                        pass
+
+        indexes = [x for x in os.listdir(p) if x.endswith('.py')]
+        indexes.sort(key=lambda x: int(x[:2]) if x[:2].isdigit() else 99)
+        for ind in indexes:
+            try:
                 self.add_index('path:' + ind, create=False)
+            except IndexConflict:
+                pass
+            except Exception as e:
+                warnings.warn("Failed loading index %s: %s (will be recreated if needed)" % (ind, e))
 
     def __compat_things(self):
         """

@@ -87,12 +87,15 @@ class Index(object):
         self._open_storage()
 
     def _close(self):
-        self.buckets.close()
-        self.storage.close()
+        if hasattr(self, 'buckets') and self.buckets and not getattr(self.buckets, 'closed', False):
+            self.buckets.close()
+        if hasattr(self, 'storage') and self.storage and not getattr(self.storage, 'closed', False):
+            self.storage.close()
 
     def close_index(self):
-        self.flush()
-        self.fsync()
+        if hasattr(self, 'buckets') and self.buckets and not getattr(self.buckets, 'closed', False):
+            self.flush()
+            self.fsync()
         self._close()
 
     def create_index(self):
