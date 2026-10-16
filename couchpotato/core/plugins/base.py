@@ -13,7 +13,7 @@ from couchpotato.core.helpers.variable import md5, isLocalIP, scanForPassword, t
 from couchpotato.core.logger import CPLog
 from couchpotato.environment import Env
 import requests
-from urllib3 import Timeout
+from requests.exceptions import Timeout, RequestException
 from urllib3.exceptions import MaxRetryError
 from tornado import template
 
@@ -189,7 +189,7 @@ class Plugin(object):
             else:
                 proxy_url = getproxies()
 
-        r = Env.get('http_opener')
+        r = Env.get('http_opener') or requests
 
         # Don't try for failed requests
         if self.http_failed_disabled.get(host, 0) > 0:
@@ -228,7 +228,7 @@ class Plugin(object):
                 response.raise_for_status()
 
             self.http_failed_request[host] = 0
-        except (IOError, MaxRetryError, Timeout):
+        except (IOError, MaxRetryError, Timeout, RequestException):
             if show_error:
                 log.error('Failed opening url in %s: %s %s', (self.getName(), url, traceback.format_exc(0)))
 

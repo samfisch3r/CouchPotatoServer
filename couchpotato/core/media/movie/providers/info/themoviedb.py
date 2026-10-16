@@ -72,9 +72,9 @@ class TheMovieDb(MovieProvider):
 
         raw = None
         try:
-            name_year = fireEvent('scanner.name_year', q, single = True)
+            name_year = fireEvent('scanner.name_year', q, single = True) or {}
             raw = self.request('search/movie', {
-                'query': name_year.get('name', q),
+                'query': name_year.get('name') or q,
                 'year': name_year.get('year'),
                 'search_type': 'ngram' if limit > 1 else 'phrase'
             }, return_key = 'results')
@@ -190,7 +190,7 @@ class TheMovieDb(MovieProvider):
             'year': tryInt(year, None),
             'plot': movie_default.get('overview') or movie.get('overview'),
             'genres': genres,
-            'collection': getattr(movie.get('belongs_to_collection'), 'name', None),
+            'collection': (movie.get('belongs_to_collection') or {}).get('name') if isinstance(movie.get('belongs_to_collection'), dict) else getattr(movie.get('belongs_to_collection'), 'name', None),
             'actor_roles': actors
         }
 
@@ -253,14 +253,16 @@ class TheMovieDb(MovieProvider):
         return data
 
     def isDisabled(self):
-        if self.getApiKey() == '':
+        if not self.getApiKey():
             log.error('No API key provided.')
             return True
         return False
 
     def getApiKey(self):
         key = self.conf('api_key')
-        return bd(random.choice(self.ak)) if key == '' else key
+        if not key:
+            key = bd(random.choice(self.ak))
+        return ss(key)
 
     def getLanguages(self):
         languages = splitString(Env.setting('languages', section = 'core'))

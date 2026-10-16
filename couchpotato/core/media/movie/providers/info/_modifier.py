@@ -99,6 +99,9 @@ class MovieResultModifier(Plugin):
 
         # Add release info from current library
         db = get_db()
+        if not db or not hasattr(db, 'get'):
+            return temp
+
         try:
 
             media = None
