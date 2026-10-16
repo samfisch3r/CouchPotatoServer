@@ -275,7 +275,7 @@ class MediaPlugin(MediaBase):
 
         total_count = len(media_ids)
         log.info('Listing media: types=%s, status=%s, found %d matches (total media=%d)',
-                 types, status, total_count, len(all_media_ids))
+                 (types, status, total_count, len(all_media_ids)))
         if total_count == 0:
             return 0, []
 

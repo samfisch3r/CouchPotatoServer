@@ -31,23 +31,30 @@ class CPLog(object):
     def close(self, *args, **kwargs):
         logging.shutdown()
 
-    def info(self, msg, replace_tuple = ()):
-        self.logger.info(self.addContext(msg, replace_tuple))
+    def _parse_args(self, args):
+        if not args:
+            return ()
+        if len(args) == 1 and isinstance(args[0], (tuple, dict)):
+            return args[0]
+        return args
 
-    def info2(self, msg, replace_tuple = ()):
-        self.logger.log(19, self.addContext(msg, replace_tuple))
+    def info(self, msg, *args):
+        self.logger.info(self.addContext(msg, self._parse_args(args)))
 
-    def debug(self, msg, replace_tuple = ()):
-        self.logger.debug(self.addContext(msg, replace_tuple))
+    def info2(self, msg, *args):
+        self.logger.log(19, self.addContext(msg, self._parse_args(args)))
 
-    def error(self, msg, replace_tuple = ()):
-        self.logger.error(self.addContext(msg, replace_tuple))
+    def debug(self, msg, *args):
+        self.logger.debug(self.addContext(msg, self._parse_args(args)))
 
-    def warning(self, msg, replace_tuple = ()):
-        self.logger.warning(self.addContext(msg, replace_tuple))
+    def error(self, msg, *args):
+        self.logger.error(self.addContext(msg, self._parse_args(args)))
 
-    def critical(self, msg, replace_tuple = ()):
-        self.logger.critical(self.addContext(msg, replace_tuple), exc_info = 1)
+    def warning(self, msg, *args):
+        self.logger.warning(self.addContext(msg, self._parse_args(args)))
+
+    def critical(self, msg, *args):
+        self.logger.critical(self.addContext(msg, self._parse_args(args)), exc_info = 1)
 
     def addContext(self, msg, replace_tuple = ()):
         return '[%+25.25s] %s' % (self.context[-25:], self.safeMessage(msg, replace_tuple))
