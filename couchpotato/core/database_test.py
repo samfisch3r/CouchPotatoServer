@@ -163,6 +163,38 @@ class DatabasePython3Test(unittest.TestCase):
                 if database.opened:
                     database.close()
 
+    def test_legacy_index_bucket_marshal_stringref_loads_and_migrates(self):
+        with tempfile.TemporaryDirectory() as path:
+            database = SuperThreadSafeDatabase(path)
+            try:
+                database.create()
+                database.close()
+
+                # Simulate existing Python 2 bucket with interned string reference ('R')
+                # which causes standard Python 3 marshal.loads to raise ValueError: bad marshal data
+                p2_stringref_payload = b'{t\x04\x00\x00\x00namet\x02\x00\x00\x00idt\r\x00\x00\x00storage_classs\n\x00\x00\x00IU_Storaget\x05\x00\x00\x00aliasR\x01\x00\x00\x000'
+                buck_path = os.path.join(path, 'id_buck')
+                with open(buck_path, 'r+b') as f:
+                    f.seek(0)
+                    f.write(p2_stringref_payload.ljust(500, b'\x00'))
+
+                db = SuperThreadSafeDatabase(path)
+                db.open()
+                self.assertTrue(db.opened)
+                self.assertEqual(db.storage.name, 'id')
+                db.close()
+
+                # Verify bucket header was automatically migrated to standard Python 3 marshal format
+                with open(buck_path, 'rb') as f:
+                    import marshal
+                    rewritten = marshal.loads(f.read(500))
+                    self.assertEqual(rewritten['name'], 'id')
+                    self.assertEqual(rewritten['storage_class'], 'IU_Storage')
+                    self.assertEqual(rewritten['alias'], 'id')
+            finally:
+                if database.opened:
+                    database.close()
+
 
 if __name__ == '__main__':
     unittest.main()

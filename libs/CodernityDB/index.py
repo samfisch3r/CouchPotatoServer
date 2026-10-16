@@ -65,6 +65,90 @@ class IndexPreconditionsException(IndexException):
     pass
 
 
+def py2_marshal_loads(b):
+    pos = 0
+    interned = []
+
+    def read_obj():
+        nonlocal pos
+        if pos >= len(b):
+            raise EOFError('EOF in py2_marshal')
+        type_code = b[pos:pos+1]
+        pos += 1
+        if type_code == b'N':
+            return None
+        elif type_code == b'T':
+            return True
+        elif type_code == b'F':
+            return False
+        elif type_code == b'i':
+            val = struct.unpack('<i', b[pos:pos+4])[0]
+            pos += 4
+            return val
+        elif type_code == b'I':
+            val = struct.unpack('<q', b[pos:pos+8])[0]
+            pos += 8
+            return val
+        elif type_code == b'g':
+            val = struct.unpack('<d', b[pos:pos+8])[0]
+            pos += 8
+            return val
+        elif type_code == b'f':
+            length = b[pos]
+            pos += 1
+            val = float(b[pos:pos+length])
+            pos += length
+            return val
+        elif type_code == b's':
+            length = struct.unpack('<i', b[pos:pos+4])[0]
+            pos += 4
+            val = b[pos:pos+length]
+            pos += length
+            try:
+                return val.decode('utf-8', 'surrogateescape')
+            except Exception:
+                return val
+        elif type_code == b't':
+            length = struct.unpack('<i', b[pos:pos+4])[0]
+            pos += 4
+            raw = b[pos:pos+length]
+            pos += length
+            val = raw.decode('utf-8', 'surrogateescape')
+            interned.append(val)
+            return val
+        elif type_code == b'R':
+            idx = struct.unpack('<i', b[pos:pos+4])[0]
+            pos += 4
+            return interned[idx]
+        elif type_code == b'u':
+            length = struct.unpack('<i', b[pos:pos+4])[0]
+            pos += 4
+            val = b[pos:pos+length].decode('utf-8', 'surrogateescape')
+            pos += length
+            return val
+        elif type_code in (b'(', b'['):
+            length = struct.unpack('<i', b[pos:pos+4])[0]
+            pos += 4
+            items = [read_obj() for _ in range(length)]
+            return tuple(items) if type_code == b'(' else items
+        elif type_code == b'{':
+            res = {}
+            while True:
+                if pos >= len(b) or b[pos:pos+1] == b'0':
+                    pos += 1
+                    break
+                k = read_obj()
+                v = read_obj()
+                res[k] = v
+            return res
+        elif type_code == b'0':
+            return None
+        else:
+            raise ValueError(f'Unknown py2 marshal code {type_code!r} at offset {pos-1}')
+
+    return read_obj()
+
+
 class Index(object):
 
     __version__ = __version__
@@ -105,18 +189,53 @@ class Index(object):
 
     def _fix_params(self):
         self.buckets.seek(0)
-        props = marshal.loads(self.buckets.read(self._start_ind))
+        raw_data = self.buckets.read(self._start_ind)
+        needs_rewrite = False
+        try:
+            props = marshal.loads(raw_data)
+        except Exception:
+            try:
+                props = py2_marshal_loads(raw_data)
+                needs_rewrite = True
+            except Exception:
+                props = {}
+        if not isinstance(props, dict):
+            props = {}
+
+        clean_props = {}
         for k, v in props.items():
             if isinstance(k, bytes):
                 k = k.decode('ascii', 'surrogateescape')
             if isinstance(v, bytes):
                 v = v.decode('utf-8', 'surrogateescape')
+            clean_props[k] = v
             self.__dict__[k] = v
+
+        if needs_rewrite and clean_props:
+            try:
+                data = marshal.dumps(clean_props)
+                if len(data) <= self._start_ind:
+                    self.buckets.seek(0)
+                    self.buckets.write(data)
+                    self.flush()
+            except Exception:
+                pass
+
         self.buckets.seek(0, 2)
 
     def _save_params(self, in_params={}):
         self.buckets.seek(0)
-        props = marshal.loads(self.buckets.read(self._start_ind))
+        raw_data = self.buckets.read(self._start_ind)
+        try:
+            props = marshal.loads(raw_data)
+        except Exception:
+            try:
+                props = py2_marshal_loads(raw_data)
+            except Exception:
+                props = {}
+        if not isinstance(props, dict):
+            props = {}
+
         clean_props = {}
         for k, v in props.items():
             if isinstance(k, bytes):

@@ -201,9 +201,13 @@ class IU_TreeBasedIndex(Index):
         self.buckets = io.open(
             os.path.join(self.db_path, self.name + "_buck"), 'r+b', buffering=0)
         self.buckets.seek(self._start_ind)
-        self.root_flag = struct.unpack('<c', self.buckets.read(1))[0]
-        if isinstance(self.root_flag, bytes):
-            self.root_flag = self.root_flag.decode('ascii')
+        flag_data = self.buckets.read(1)
+        if flag_data:
+            self.root_flag = struct.unpack('<c', flag_data)[0]
+            if isinstance(self.root_flag, bytes):
+                self.root_flag = self.root_flag.decode('ascii')
+        else:
+            self.root_flag = 'l'
         self._fix_params()
         self._open_storage()
 
