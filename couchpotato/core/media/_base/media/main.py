@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 import time
 import traceback
@@ -7,7 +8,7 @@ from CodernityDB.database import RecordNotFound, RecordDeleted
 from couchpotato import tryInt, get_db
 from couchpotato.api import addApiView
 from couchpotato.core.event import fireEvent, fireEventAsync, addEvent
-from couchpotato.core.helpers.encoding import toUnicode
+from couchpotato.core.helpers.encoding import toUnicode, sp
 from couchpotato.core.helpers.variable import splitString, getImdb, getTitle
 from couchpotato.core.logger import CPLog
 from couchpotato.core.media import MediaBase
@@ -508,10 +509,15 @@ class MediaPlugin(MediaBase):
 
                     for release in media_releases:
                         if delete_from in ['wanted', 'snatched', 'late']:
-                            if release.get('status') != 'done':
+                            has_files = any(
+                                any(os.path.isfile(sp(f)) for f in file_list)
+                                for file_list in release.get('files', {}).values()
+                            ) if release.get('files') else False
+                            if release.get('status') != 'done' or not has_files:
                                 db.delete(release)
                                 total_deleted += 1
-                            new_media_status = 'done'
+                            else:
+                                new_media_status = 'done'
                         elif delete_from == 'manage':
                             if release.get('status') == 'done' or media.get('status') == 'done':
                                 db.delete(release)

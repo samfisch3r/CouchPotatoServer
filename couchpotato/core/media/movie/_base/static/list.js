@@ -415,7 +415,7 @@ var MovieList = new Class({
 						'method': 'post',
 						'data': {
 							'id': ids.join(','),
-							'delete_from': self.options.identifier
+							'delete_from': 'all'
 						},
 						'onSuccess': function(){
 							qObj.close();

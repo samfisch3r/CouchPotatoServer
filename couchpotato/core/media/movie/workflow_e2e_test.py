@@ -157,3 +157,37 @@ class MovieWorkflowEndToEndTest(unittest.TestCase):
         # 7. Verify movie media status transitioned to done
         final_movie = fireEvent('media.get', movie_dict['_id'], single = True)
         self.assertEqual(final_movie['status'], 'done')
+
+        # 8. Verify deleting the grabbed movie removes both the media and connected releases
+        fireEvent('media.delete', media_id = movie_dict['_id'], delete_from = 'all')
+        self.assertIsNone(fireEvent('media.get', movie_dict['_id'], single = True))
+        releases_after = list(fireEvent('release.for_media', movie_dict['_id'], single = True) or [])
+        self.assertEqual(len(releases_after), 0)
+
+    def test_delete_grabbed_movie_from_wanted_deletes_when_no_library_files(self):
+        movie_dict = fireEvent('movie.add', params = {
+            'identifier': 'tt0137523',
+            'title': 'Fight Club',
+            'profile_id': self.default_profile['_id'],
+            'info': {
+                'year': 1999,
+                'titles': ['Fight Club'],
+            }
+        }, search_after = False, update_after = False, notify_after = False, single = True)
+
+        # Simulate a grabbed release that was marked 'done' without library files on disk
+        release = self.db.insert({
+            '_t': 'release',
+            'media_id': movie_dict['_id'],
+            'identifier': 'fight.club.1080p',
+            'quality': '1080p',
+            'status': 'done',
+            'last_edit': int(time.time()),
+        })
+
+        # When deleted from 'wanted', it should delete the release and media because there are no library files
+        fireEvent('media.delete', media_id = movie_dict['_id'], delete_from = 'wanted')
+        self.assertIsNone(fireEvent('media.get', movie_dict['_id'], single = True))
+        releases_after = list(fireEvent('release.for_media', movie_dict['_id'], single = True) or [])
+        self.assertEqual(len(releases_after), 0)
+

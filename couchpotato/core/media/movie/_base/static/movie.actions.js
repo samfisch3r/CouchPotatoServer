@@ -878,7 +878,7 @@ MA.Delete = new Class({
 		Api.request('media.delete', {
 			'data': {
 				'id': self.movie.get('_id'),
-				'delete_from': self.movie.list.options.identifier
+				'delete_from': 'all'
 			},
 			'onComplete': function(){
 				if(self.question)

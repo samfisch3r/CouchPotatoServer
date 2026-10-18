@@ -86,6 +86,12 @@ except ImportError:
     from __init__ import __version__
 
 
+def _normalize_key(val):
+    if isinstance(val, bytes):
+        return val.decode('utf-8', 'replace').rstrip('\x00')
+    return val.rstrip('\x00') if isinstance(val, str) else val
+
+
 class IU_HashIndex(Index):
     """
     That class is for Internal Use only, if you want to use HashIndex just subclass the :py:class:`HashIndex` instead this one.
@@ -280,7 +286,7 @@ class IU_HashIndex(Index):
             except struct.error:
                 raise ElemNotFound(
                     "Not found")  # not found but might be also broken
-            if l_key == key:
+            if _normalize_key(l_key) == _normalize_key(key):
                 break
             else:
                 if not _next:
@@ -314,7 +320,7 @@ class IU_HashIndex(Index):
             except:
                 raise DocIdNotFound(
                     "Doc_id '%s' for '%s' not found" % (doc_id, key))
-            if l_doc_id == doc_id and l_key == key:  # added for consistency
+            if _normalize_key(l_doc_id) == _normalize_key(doc_id) and _normalize_key(l_key) == _normalize_key(key):  # added for consistency
                 break
             else:
                 if not _next:
